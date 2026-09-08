@@ -40,7 +40,7 @@ async function domesticModel(league,cfg,key,cur,prev,from,to){
    get(`/fixtures?league=${league}&season=${prev}&timezone=Europe%2FRome`,key)
  ]);
  const bad=[up,curr,old].find(x=>!x.ok);
- if(bad)return out(502,{ok:false,message:"API-Football ha restituito un errore"});
+ if(bad){const msg=formatApiError(bad);console.error("API-Football analyze error",{league,status:bad.status,errors:bad.errors});return out(502,{ok:false,message:msg,apiStatus:bad.status||null,apiErrors:bad.errors||null});}
 
  const cf=finished(curr.data.response||[]);
  const pf=finished(old.data.response||[]);
@@ -149,7 +149,7 @@ async function europeanModel(league,cfg,key,cur,prev,from,to){
    get(`/teams?league=${league}&season=${cur}`,key)
  ]);
  const bad=[euroR,teamsR].find(x=>!x.ok);
- if(bad)return out(502,{ok:false,message:"API-Football ha restituito un errore sui dati europei"});
+ if(bad){const msg=formatApiError(bad," sui dati europei");console.error("API-Football Europe error",{league,status:bad.status,errors:bad.errors});return out(502,{ok:false,message:msg,apiStatus:bad.status||null,apiErrors:bad.errors||null});}
 
  const allEuro=euroR.data.response||[];
  const upcoming=allEuro.filter(x=>{
@@ -375,6 +375,16 @@ async function europeanModel(league,cfg,key,cur,prev,from,to){
 function pack(x,analysis){return{id:x.fixture.id,date:x.fixture.date,home:x.teams.home,away:x.teams.away,analysis}}
 function pending(x){return !["FT","AET","PEN"].includes(x.fixture.status.short)}
 let lastRequestsRemaining=null;
+
+function formatApiError(x,suffix=""){
+ const status=x&&x.status?`HTTP ${x.status}`:"errore sconosciuto";
+ const e=x&&x.errors;
+ let detail="";
+ if(Array.isArray(e)) detail=e.map(v=>typeof v==="string"?v:JSON.stringify(v)).filter(Boolean).join("; ");
+ else if(e&&typeof e==="object") detail=Object.entries(e).map(([k,v])=>`${k}: ${typeof v==="string"?v:JSON.stringify(v)}`).join("; ");
+ else if(typeof e==="string") detail=e;
+ return `API-Football${suffix}: ${status}${detail?` — ${detail}`:""}`;
+}
 
 async function get(path,key){
  const r=await fetch(API+path,{headers:{"x-apisports-key":key}});
