@@ -3,7 +3,8 @@ const INDEX_HTML_B64 = "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9Iml0Ij4KPGhlYWQ+Cjxt
 // Shared API-Football throttle for the FREE plan (10 requests/minute).
 // It also caches upstream responses for 30 minutes so refreshes do not spend quota again.
 const API_THROTTLE = (() => {
-  const MIN_GAP_MS = 6200; // <= 10 requests/minute
+  const MIN_GAP_MS = 300 ;
+// <= 10 requests/minute
   const UPSTREAM_TTL_SECONDS = 1800;
   let queue = Promise.resolve();
   let lastStart = 0;
