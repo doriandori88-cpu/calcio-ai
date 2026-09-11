@@ -35,18 +35,71 @@ const TEAM_DOMESTIC_LEAGUE = {
 const LEAGUE_NAMES = {39:"Premier League",140:"La Liga",135:"Serie A",136:"Serie B",78:"Bundesliga",61:"Ligue 1",94:"Primeira Liga",88:"Eredivisie",144:"Jupiler Pro League",179:"Scottish Premiership",218:"Austrian Bundesliga",207:"Swiss Super League",203:"Süper Lig",197:"Super League Greece",119:"Danish Superliga",103:"Eliteserien",113:"Allsvenskan",106:"Ekstraklasa",345:"Czech Liga",210:"HNL",286:"Serbian SuperLiga",333:"Ukrainian Premier League",283:"Romanian Liga I",271:"Hungarian NB I",332:"Slovak Super Liga",373:"Slovenian PrvaLiga",318:"Cypriot First Division",383:"Israeli Premier League",419:"Azerbaijan Premier League"};
 
 let lastRequestsRemaining = null;
+
+// Shared throttle + upstream cache. API-Football free plans have a strict per-minute
+// request ceiling; keeping every upstream call serialized avoids burst failures.
+const API_THROTTLE = (() => {
+  const MIN_GAP_MS = 6500; // <= ~9 requests/minute, leaving safety margin below 10/min
+  let queue = Promise.resolve();
+  let lastStart = 0;
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  return async task => {
+    const run = async () => {
+      const wait = Math.max(0, MIN_GAP_MS - (Date.now() - lastStart));
+      if(wait) await sleep(wait);
+      lastStart = Date.now();
+      return task();
+    };
+    const p = queue.then(run, run);
+    queue = p.catch(()=>{});
+    return p;
+  };
+})();
+
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const blend=(a,b,w)=>a*(1-w)+b*w;
 const finished=a=>(a||[]).filter(x=>["FT","AET","PEN"].includes(x.fixture?.status?.short)&&x.goals?.home!=null&&x.goals?.away!=null);
 const pending=x=>!["FT","AET","PEN","CANC","PST"].includes(x.fixture?.status?.short);
 const pack=(x,analysis)=>({id:x.fixture.id,date:x.fixture.date,home:x.teams.home,away:x.teams.away,analysis});
 
+function upstreamTTL(path){
+  if(path.startsWith("/odds?")) return 900;
+  if(path.startsWith("/injuries?")||path.startsWith("/fixtures/lineups?")) return 600;
+  if(path.startsWith("/teams?")||path.startsWith("/leagues?")) return 86400;
+  return 21600;
+}
+function isRateLimitError(errors){
+  const text=typeof errors==="string"?errors:JSON.stringify(errors||{});
+  return /rate.?limit|too many requests|requests per minute/i.test(text);
+}
 async function api(path,key){
-  const r=await fetch(API+path,{headers:{"x-apisports-key":key}});
-  const rem=r.headers.get("x-ratelimit-requests-remaining"); if(rem!=null&&rem!=="") lastRequestsRemaining=Number(rem);
-  let data; try{data=await r.json()}catch{return {ok:false,status:r.status,errors:"JSON non valido"}}
-  const has=data.errors&&(Array.isArray(data.errors)?data.errors.length:Object.keys(data.errors).length);
-  return (!r.ok||has)?{ok:false,status:r.status,errors:data.errors}:{ok:true,status:r.status,data};
+  const cache=caches.default;
+  const cacheKey=new Request("https://api-cache.calcio-ai.local"+path,{method:"GET"});
+  const cached=await cache.match(cacheKey);
+  if(cached){
+    try{return {ok:true,status:200,data:await cached.json(),cached:true}}catch{}
+  }
+
+  const execute=async()=>{
+    const r=await fetch(API+path,{headers:{"x-apisports-key":key}});
+    const rem=r.headers.get("x-ratelimit-requests-remaining");
+    if(rem!=null&&rem!=="") lastRequestsRemaining=Number(rem);
+    let data; try{data=await r.json()}catch{return {ok:false,status:r.status,errors:"JSON non valido"}}
+    const has=data.errors&&(Array.isArray(data.errors)?data.errors.length:Object.keys(data.errors).length);
+    return (!r.ok||has)?{ok:false,status:r.status,errors:data.errors,data}:{ok:true,status:r.status,data};
+  };
+
+  let result=await API_THROTTLE(execute);
+  // One controlled retry after a rate-limit response. Because the global queue is
+  // spaced, the retry lands in a later request slot instead of creating a burst.
+  if(!result.ok&&isRateLimitError(result.errors)) result=await API_THROTTLE(execute);
+
+  if(result.ok){
+    const ttl=upstreamTTL(path);
+    const resp=new Response(JSON.stringify(result.data),{headers:{"content-type":"application/json","Cache-Control":`public, max-age=${ttl}`}});
+    try{await cache.put(cacheKey,resp)}catch{}
+  }
+  return result;
 }
 function apiError(x,where=""){
   const e=x?.errors; let detail="";
@@ -140,7 +193,7 @@ async function domesticModel(league,cfg,key,cur,prev,from,to){
     const conf=confidence(sample),explain=[`Elo dinamico: ${x.teams.home.name} ${Math.round(elo.elo.get(hid)||1500)} • ${x.teams.away.name} ${Math.round(elo.elo.get(aid)||1500)}.`,`Power combinato Elo + rendimento: ${homePower.toFixed(2)} • ${awayPower.toFixed(2)} (1.00 = media).`,`Forma pesata per recenza e forza avversari: ${hf.toFixed(2)} • ${af.toFixed(2)}.`,`Riposo stimato: ${hr??"n/d"} giorni • ${ar??"n/d"} giorni.`,`Casa/trasferta usati come correttivo, non come rating separato.`,`Campione stagione corrente: ${hs.n} • ${as.n} gare.`];
     return pack(x,model(lh,la,{method:"Elo dinamico + forza avversari + forma pesata + casa/trasferta + riposo",note:"xG modello = gol attesi stimati dal modello, non xG ufficiale API-Football.",explain,homePower,awayPower,homeForm:hf,awayForm:af,homeRest:hr,awayRest:ar,confidence:conf,sample}));
   });
-  return response({ok:true,matches,meta:{leagueName:cfg.name,apiCalls:3,version:"1.1",model:"Calcio AI 1.1",requestsRemaining:lastRequestsRemaining}},200,21600);
+  return response({ok:true,matches,meta:{leagueName:cfg.name,apiCalls:3,version:"1.1.1",model:"Calcio AI 1.1.1",requestsRemaining:lastRequestsRemaining}},200,21600);
 }
 
 const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ß/g,"ss").replace(/ø/g,"o").replace(/\b(fc|cf|afc|sc|fk|ac|as|rc|vfb|rb|kv)\b/g,"").replace(/[^a-z0-9]/g,"");
@@ -156,14 +209,33 @@ async function europeanModel(league,cfg,key,cur,prev,from,to){
   const clubs=[...new Map(upcoming.flatMap(x=>[[x.teams.home.id,{id:x.teams.home.id,name:x.teams.home.name}],[x.teams.away.id,{id:x.teams.away.id,name:x.teams.away.name}]])).values()];
   const teamLeague={}; const unresolved=[];
   for(const t of clubs){const m=meta.get(Number(t.id))||{};const lid=COUNTRY_LEAGUE[m.country]||NAME_LEAGUE[norm(t.name)]||TEAM_DOMESTIC_LEAGUE[t.id]||null;if(lid)teamLeague[t.id]={id:Number(lid),name:LEAGUE_NAMES[lid]||`League ${lid}`,country:m.country||""};else unresolved.push(t)}
-  let dynamicCalls=0; for(const t of unresolved.slice(0,6)){const r=await api(`/leagues?team=${t.id}&current=true`,key);dynamicCalls++;if(r.ok){const dl=chooseLeague(r.data.response);if(dl)teamLeague[t.id]=dl}}
-  const lids=[...new Set(Object.values(teamLeague).map(x=>x.id))],fixtures={}; let leagueCalls=0;
-  await Promise.all(lids.map(async lid=>{const [rPrev,rCur]=await Promise.all([api(`/fixtures?league=${lid}&season=${prev}&timezone=Europe%2FRome`,key),api(`/fixtures?league=${lid}&season=${cur}&timezone=Europe%2FRome`,key)]);leagueCalls+=2;fixtures[lid]={prev:rPrev.ok?finished(rPrev.data.response||[]):[],cur:rCur.ok?finished(rCur.data.response||[]):[]}}));
+  // Dynamic discovery is a fallback only. Most clubs are resolved from country/name/id,
+  // so capping this prevents one European screen from exhausting the minute quota.
+  let dynamicCalls=0;
+  for(const t of unresolved.slice(0,2)){
+    const r=await api(`/leagues?team=${t.id}&current=true`,key);
+    dynamicCalls++;
+    if(r.ok){const dl=chooseLeague(r.data.response);if(dl)teamLeague[t.id]=dl}
+  }
+
+  const lids=[...new Set(Object.values(teamLeague).map(x=>x.id))],fixtures={};
+  let leagueCalls=0;
+  // Early season uses the previous completed domestic season as stable prior; from
+  // November onward the current domestic season is mature enough. This halves the
+  // cold-start calls versus downloading both seasons for every domestic league.
+  const month=Number(String(from).slice(5,7)||9);
+  const baseSeason=month<=10?prev:cur;
+  for(const lid of lids){
+    const r=await api(`/fixtures?league=${lid}&season=${baseSeason}&timezone=Europe%2FRome`,key);
+    leagueCalls++;
+    const rows=r.ok?finished(r.data.response||[]):[];
+    fixtures[lid]={prev:baseSeason===prev?rows:[],cur:baseSeason===cur?rows:[]};
+  }
   const eloEuro=buildElo(ef);
   const matches=upcoming.map(x=>{const ht={id:x.teams.home.id,name:x.teams.home.name},at={id:x.teams.away.id,name:x.teams.away.name},hl=teamLeague[ht.id],al=teamLeague[at.id];if(!hl||!al)return pack(x,{insufficient:true,reason:"Campionato domestico non identificato per una delle squadre.",explain:[`${ht.name}: ${hl?hl.name:"lega non risolta"}`,`${at.name}: ${al?al.name:"lega non risolta"}`,`Nessuna percentuale viene inventata senza una base reale sufficiente.`]});
     const hsP=statsForTeam(fixtures[hl.id]?.prev,ht),hsC=statsForTeam(fixtures[hl.id]?.cur,ht),asP=statsForTeam(fixtures[al.id]?.prev,at),asC=statsForTeam(fixtures[al.id]?.cur,at);if(!hsP&&!hsC||!asP&&!asC)return pack(x,{insufficient:true,reason:"Dati domestici insufficienti per una delle squadre.",explain:[`${ht.name}: ${hsC?.n||0} gare correnti / ${hsP?.n||0} precedenti.`,`${at.name}: ${asC?.n||0} gare correnti / ${asP?.n||0} precedenti.`]});
     const blendTeam=(p,c)=>{const pp=simplePower(p)??1,cc=simplePower(c)??pp,w=currentWeight(c?.n||0);return clamp(blend(pp,cc,w),.74,1.38)}; const hp=blendTeam(hsP,hsC)*(LEAGUE_STRENGTH[hl.id]||.90),ap=blendTeam(asP,asC)*(LEAGUE_STRENGTH[al.id]||.90);const hEuro=teamStats(ef,ht.id),aEuro=teamStats(ef,at.id),hf=weightedForm(ef,ht.id,eloEuro),af=weightedForm(ef,at.id,eloEuro),hr=restDays(ef,ht.id,x.fixture.date),ar=restDays(ef,at.id,x.fixture.date);const hpow=clamp(hp*(1+(hf-.5)*.06),.72,1.45),apow=clamp(ap*(1+(af-.5)*.06),.72,1.45);let lh=(ef.length?euroAvg.home:1.45)*clamp(hpow/apow,.72,1.40)*restFactor(hr),la=(ef.length?euroAvg.away:1.25)*clamp(apow/hpow,.72,1.40)*restFactor(ar);lh=clamp(lh,.55,2.75);la=clamp(la,.45,2.55);const sample=Math.min((hsC?.n||0)+(hEuro.n||0),(asC?.n||0)+(aEuro.n||0));const conf=confidence(sample);const explain=[`${ht.name}: ${hl.name}, coefficiente ${(LEAGUE_STRENGTH[hl.id]||.90).toFixed(2)}.`,`${at.name}: ${al.name}, coefficiente ${(LEAGUE_STRENGTH[al.id]||.90).toFixed(2)}.`,`Power comparabile tra leghe: ${hpow.toFixed(2)} • ${apow.toFixed(2)}.`,`Forma europea pesata: ${hf.toFixed(2)} • ${af.toFixed(2)}.`,`Riposo: ${hr??"n/d"} • ${ar??"n/d"} giorni.`,`Copertura automatica usata per club senza mapping statico, quando disponibile.`];return pack(x,model(lh,la,{method:`${cfg.name}: forza domestica + coefficiente lega + forma europea + riposo`,note:"xG modello = stima del modello, non dato xG ufficiale.",explain,homePower:hpow,awayPower:apow,homeForm:hf,awayForm:af,homeRest:hr,awayRest:ar,confidence:conf,sample}))});
-  return response({ok:true,matches,meta:{leagueName:cfg.name,apiCalls:2+dynamicCalls+leagueCalls,version:"1.1",model:"Calcio AI 1.1",requestsRemaining:lastRequestsRemaining}},200,21600);
+  return response({ok:true,matches,meta:{leagueName:cfg.name,apiCalls:2+dynamicCalls+leagueCalls,version:"1.1.1",model:"Calcio AI 1.1.1",requestsRemaining:lastRequestsRemaining}},200,21600);
 }
 
 async function analyze(request,env){
