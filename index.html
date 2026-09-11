@@ -1,31 +1,34 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Calcio AI 1.0</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<title>Calcio AI 1.1</title>
 <style>
-body{margin:0;background:#07111f;color:#f4f7fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{max-width:800px;margin:auto;padding:38px 18px}h1{font-size:42px;margin:0 0 8px}.sub,.meta,.small{color:#93a4bf}
-.controls{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}select,button{border:0;border-radius:14px;padding:13px 14px;font-size:16px}
-select{background:#142239;color:#fff;min-width:220px}button{background:#72cdf4;font-weight:700;color:#0875d1}
-#status,.match{margin:18px 0;padding:18px;border:1px solid #2a3c5c;border-radius:18px;background:#111d31}
-.teams{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:750;font-size:20px;margin:12px 0}
-.team{display:flex;align-items:center;gap:8px}.team img{width:36px;height:36px;object-fit:contain}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.p{background:#172742;border-radius:12px;padding:10px;text-align:center}.best{outline:2px solid #72cdf4}
-.row{margin-top:12px;line-height:1.55}.tag{display:inline-block;background:#172742;padding:6px 9px;border-radius:9px;margin:3px 4px 3px 0}
-.small{font-size:13px;margin-top:10px}.notice{font-size:13px;color:#c5d4e8;margin-top:10px;padding:9px 10px;background:#172742;border-radius:10px}
-.detailbtn{margin-top:14px;background:#203653;color:#d9ecff;width:100%}
-.details{margin-top:12px;padding:12px;background:#0d192b;border-radius:12px}
-.section{margin-top:12px}.section b{display:block;margin-bottom:6px}.muted{color:#93a4bf;font-size:13px}
-.playerline{padding:4px 0;border-bottom:1px solid #20304a}.oddsgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.odd{background:#172742;border-radius:10px;padding:8px;text-align:center}
-.valuebox{margin-top:10px;background:#172742;border-radius:12px;padding:10px}
-.valuerow{display:grid;grid-template-columns:42px 1fr 1fr 1fr;gap:6px;padding:6px 0;border-bottom:1px solid #253752;font-size:13px}
-.valuerow:last-child{border-bottom:0}.positive{font-weight:700}.warning{font-size:12px;color:#93a4bf;margin-top:8px}
-</style></head>
+:root{color-scheme:dark;--bg:#07111f;--card:#111d31;--soft:#172742;--line:#2a3c5c;--text:#f4f7fb;--muted:#93a4bf;--accent:#72cdf4;--good:#8ce99a;--warn:#ffd43b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:900px;margin:auto;padding:30px 16px 60px}h1{font-size:38px;margin:0 0 6px}.sub,.meta,.small,.muted{color:var(--muted)}.sub{margin-top:0}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}select,button{border:0;border-radius:14px;padding:13px 14px;font-size:16px}
+select{background:#142239;color:#fff;min-width:230px;flex:1}button{background:var(--accent);font-weight:750;color:#064f78;cursor:pointer}button:disabled{opacity:.55}
+#status,.match{margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card)}
+.teams{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:750;font-size:19px;margin:12px 0}.team{display:flex;align-items:center;gap:8px;min-width:0}.team img{width:34px;height:34px;object-fit:contain}.team span{overflow:hidden;text-overflow:ellipsis}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.p{background:var(--soft);border-radius:12px;padding:10px;text-align:center}.best{outline:2px solid var(--accent)}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.metric{background:#0d192b;border-radius:12px;padding:10px}.metric b{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.row{margin-top:12px;line-height:1.55}.tag{display:inline-block;background:var(--soft);padding:6px 9px;border-radius:9px;margin:3px 4px 3px 0}
+.small{font-size:13px;margin-top:9px}.notice{font-size:13px;color:#c5d4e8;margin-top:10px;padding:9px 10px;background:var(--soft);border-radius:10px}
+.detailbtn{margin-top:14px;background:#203653;color:#d9ecff;width:100%}.details{margin-top:12px;padding:12px;background:#0d192b;border-radius:12px}
+.section{margin-top:12px}.section>b{display:block;margin-bottom:6px}.playerline{padding:4px 0;border-bottom:1px solid #20304a}
+.oddsgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.odd{background:var(--soft);border-radius:10px;padding:8px;text-align:center}
+.valuebox{margin-top:10px;background:var(--soft);border-radius:12px;padding:10px}.valuerow{display:grid;grid-template-columns:36px 1fr 1fr 1fr;gap:6px;padding:6px 0;border-bottom:1px solid #253752;font-size:13px}.valuerow:last-child{border-bottom:0}.positive{font-weight:750;color:var(--good)}.warning{font-size:12px;color:var(--muted);margin-top:8px}
+.badge{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:4px 8px;margin:0 5px 5px 0}.quality-good{color:var(--good)}.quality-warn{color:var(--warn)}
+@media(max-width:600px){main{padding-top:24px}h1{font-size:34px}.teams{font-size:16px}.team img{width:30px;height:30px}.metrics{grid-template-columns:1fr}.valuerow{font-size:12px}}
+</style>
+</head>
 <body><main>
-<div id="api-remaining" class="muted" style="margin:0 0 12px 2px"></div>
-<h1>Calcio AI 1.0</h1>
-<p class="sub">Analisi pre-match completa • Power Rating • VALUE • mercati • assenti • formazioni ufficiali</p>
+<div id="api-remaining" class="muted"></div>
+<h1>Calcio AI 1.1</h1>
+<p class="sub">Elo dinamico • forza avversari • forma pesata • casa/trasferta • riposo • mercati • VALUE</p>
 
 <div class="controls">
 <select id="league">
@@ -35,168 +38,121 @@ select{background:#142239;color:#fff;min-width:220px}button{background:#72cdf4;f
 <option value="88">🇳🇱 Eredivisie</option><option value="94">🇵🇹 Primeira Liga</option>
 <option value="2">🇪🇺 Champions League</option><option value="3">🇪🇺 Europa League</option>
 </select>
-<button onclick="load(false)">Aggiorna</button>
+<button id="refresh" onclick="load(true)">Aggiorna</button>
 </div>
-<div class="small">Cache locale 30 minuti + cache Netlify durevole. Quote, assenti e formazioni vengono caricati solo quando apri la partita.</div>
-<div class="notice"><b>Calcio AI 1.0</b><br>Il modello non pubblica percentuali quando manca una base statistica reale sufficiente. Il VALUE confronta il modello con le quote depurate dal margine del bookmaker.</div>
 
-<div id="status">Caricamento…</div><div id="matches"></div>
+<div class="small">Cache locale 30 minuti + cache Cloudflare. I dettagli (quote, assenti, formazioni) vengono caricati solo quando apri una partita, per ridurre le chiamate API.</div>
+<div class="notice"><b>Modello 1.1</b><br>Le percentuali derivano da dati reali disponibili e da un modello Poisson calibrato con Elo, produzione/subiti, forma e contesto. “xG modello” indica i gol attesi stimati dal modello, non l’xG ufficiale del provider.</div>
+
+<div id="status">Caricamento…</div>
+<div id="matches"></div>
 
 <script>
 const modelByFixture={};
-const e=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const pct=x=>(x*100).toFixed(1)+'%';
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const pct=x=>Number.isFinite(Number(x))?(Number(x)*100).toFixed(1)+'%':'—';
+const num=(x,d=2)=>Number.isFinite(Number(x))?Number(x).toFixed(d):'—';
+const CACHE_TTL=30*60*1000, DETAIL_TTL=30*60*1000;
+const keyLeague=l=>'calcioai_v11_'+l, keyDetail=id=>'calcioai_v11_detail_'+id;
 
-const CACHE_TTL = 30*60*1000;
-
-function cacheKey(league){ return 'calcioai_v10_'+league; }
-
-function getLocalCache(league){
- try{
-   const raw=localStorage.getItem(cacheKey(league));
-   if(!raw)return null;
-   const obj=JSON.parse(raw);
-   if(!obj.savedAt || (Date.now()-obj.savedAt)>CACHE_TTL)return null;
-   return obj.data;
- }catch{return null}
-}
-
-function setLocalCache(league,data){
- try{ localStorage.setItem(cacheKey(league),JSON.stringify({savedAt:Date.now(),data})); }catch{}
-}
+function cacheRead(k,ttl){try{const x=JSON.parse(localStorage.getItem(k)||'null');return x&&Date.now()-x.t<ttl?x.d:null}catch{return null}}
+function cacheWrite(k,d){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),d}))}catch{}}
 
 async function load(force=false){
- const league=document.querySelector('#league').value, st=document.querySelector('#status'), box=document.querySelector('#matches');
+ const league=document.querySelector('#league').value,st=document.querySelector('#status'),box=document.querySelector('#matches'),btn=document.querySelector('#refresh');
  box.innerHTML='';
-
- const cached=getLocalCache(league);
- if(cached && !force){
-   render(cached,true);
-   return;
- }
-
- st.textContent='Analisi in corso…';
+ const cached=cacheRead(keyLeague(league),CACHE_TTL);
+ if(cached&&!force){render(cached,true);return}
+ st.textContent='Analisi in corso…';btn.disabled=true;
  try{
-  const r=await fetch('/api/analyze?league='+encodeURIComponent(league)+'&v=100');
-  const j=await r.json();
- const rem=document.getElementById('api-remaining');
- if(rem && j.meta && j.meta.requestsRemaining!=null){
-   rem.textContent=`API-Football: ${j.meta.requestsRemaining} richieste rimaste oggi`;
- }
-  if(r.ok && j.ok)setLocalCache(league,j);
-  if(!r.ok||!j.ok){st.innerHTML='<b>Errore</b><br>'+e(j.message||'');return}
-  render(j,false);
+   const r=await fetch('/api/analyze?league='+encodeURIComponent(league)+'&v=110'+(force?'&fresh=1':''));
+   const j=await r.json();
+   const rem=document.getElementById('api-remaining');
+   if(rem&&j.meta?.requestsRemaining!=null)rem.textContent=`API-Football: ${j.meta.requestsRemaining} richieste rimaste`;
+   if(!r.ok||!j.ok){st.innerHTML='<b>Errore</b><br>'+esc(j.message||'Errore sconosciuto');return}
+   cacheWrite(keyLeague(league),j);render(j,false);
  }catch(x){st.textContent='Errore: '+x.message}
+ finally{btn.disabled=false}
 }
+
+function qualityClass(q){return /alta|buona/.test(q||'')?'quality-good':/bassa/.test(q||'')?'quality-warn':''}
 
 function render(j,fromCache){
- const st=document.querySelector('#status'), box=document.querySelector('#matches');
- box.innerHTML='';
- st.textContent=`${j.matches.length} partite • ${j.meta.leagueName} • ${fromCache?'cache locale':'dati aggiornati'} • ${j.meta.apiCalls} chiamate API • modello ${j.meta.version||'1.0'}`;
+ const st=document.querySelector('#status'),box=document.querySelector('#matches');box.innerHTML='';
+ const calls=j.meta?.apiCalls??'—';
+ st.textContent=`${j.matches.length} partite • ${j.meta.leagueName} • ${fromCache?'cache locale':'dati aggiornati'} • ${calls} chiamate API • modello ${j.meta.version}`;
  if(!j.matches.length){box.innerHTML='<div class="match">Nessuna partita nei prossimi 14 giorni.</div>';return}
- j.matches.forEach(g=>{
-   const a=g.analysis;
-   modelByFixture[g.id]=a;
+ for(const g of j.matches){
+   const a=g.analysis;modelByFixture[g.id]=a;
    const dt=new Date(g.date).toLocaleString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
    if(a.insufficient){
-     box.insertAdjacentHTML('beforeend',`<div class="match">
-      <div class="meta">${e(dt)}</div>
-      <div class="teams"><span class="team"><img src="${e(g.home.logo)}">${e(g.home.name)}</span><span>–</span><span class="team">${e(g.away.name)}<img src="${e(g.away.logo)}"></span></div>
-      <div class="notice"><b>Dati insufficienti</b><br>${e(a.reason)}</div>
-      ${a.explain?`<div class="notice"><b>Controllo dati</b><br>${a.explain.map(v=>`• ${e(v)}`).join('<br>')}</div>`:''}
-      <button class="detailbtn" onclick="loadDetails(${g.id},this)">Quote • Assenti • Formazioni</button>
-      <div class="details" id="details-${g.id}" style="display:none"></div>
-     </div>`);
-     return;
+     box.insertAdjacentHTML('beforeend',`<div class="match"><div class="meta">${esc(dt)}</div>
+     <div class="teams"><span class="team"><img src="${esc(g.home.logo)}"><span>${esc(g.home.name)}</span></span><span>–</span><span class="team"><span>${esc(g.away.name)}</span><img src="${esc(g.away.logo)}"></span></div>
+     <div class="notice"><b>Dati insufficienti</b><br>${esc(a.reason||'')}</div>
+     ${a.explain?`<div class="notice">${a.explain.map(v=>'• '+esc(v)).join('<br>')}</div>`:''}
+     <button class="detailbtn" onclick="loadDetails(${g.id},this)">Quote • Assenti • Formazioni</button><div class="details" id="details-${g.id}" style="display:none"></div></div>`);
+     continue;
    }
-   const vals=[a.p1,a.px,a.p2], mx=Math.max(...vals);
+   const vals=[a.p1,a.px,a.p2],mx=Math.max(...vals);
    box.insertAdjacentHTML('beforeend',`<div class="match">
-    <div class="meta">${e(dt)}</div>
-    <div class="teams"><span class="team"><img src="${e(g.home.logo)}">${e(g.home.name)}</span><span>–</span><span class="team">${e(g.away.name)}<img src="${e(g.away.logo)}"></span></div>
-    <div class="grid"><div class="p ${a.p1==mx?'best':''}"><b>1</b><br>${pct(a.p1)}</div><div class="p ${a.px==mx?'best':''}"><b>X</b><br>${pct(a.px)}</div><div class="p ${a.p2==mx?'best':''}"><b>2</b><br>${pct(a.p2)}</div></div>
-    <div class="row"><b>Gol attesi:</b> ${a.lh.toFixed(2)} – ${a.la.toFixed(2)}</div>
-    <div class="row"><span class="tag">Forza casa ${a.homePower.toFixed(2)}</span><span class="tag">Forza ospite ${a.awayPower.toFixed(2)}</span><span class="tag">Affidabilità ${e(a.confidence)}</span></div>
-    ${a.confidence==="molto bassa"||a.confidence==="bassa"?'<div class="notice">Pronostico prudenziale: campione corrente ancora ridotto.</div>':''}
-    <div class="row"><b>Risultati esatti:</b> ${a.scores.map(x=>`<span class="tag">${x.score} ${pct(x.p)}</span>`).join('')}</div>
-    <div class="row"><b>Gol:</b>
-      <span class="tag">Over 1.5 ${pct(a.over15)}</span><span class="tag">Under 1.5 ${pct(a.under15)}</span>
-      <span class="tag">Over 2.5 ${pct(a.over)}</span><span class="tag">Under 2.5 ${pct(a.under)}</span>
-      <span class="tag">Over 3.5 ${pct(a.over35)}</span><span class="tag">Under 3.5 ${pct(a.under35)}</span>
+    <div class="meta">${esc(dt)}</div>
+    <div class="teams"><span class="team"><img src="${esc(g.home.logo)}"><span>${esc(g.home.name)}</span></span><span>–</span><span class="team"><span>${esc(g.away.name)}</span><img src="${esc(g.away.logo)}"></span></div>
+    <div class="grid"><div class="p ${a.p1===mx?'best':''}"><b>1</b><br>${pct(a.p1)}</div><div class="p ${a.px===mx?'best':''}"><b>X</b><br>${pct(a.px)}</div><div class="p ${a.p2===mx?'best':''}"><b>2</b><br>${pct(a.p2)}</div></div>
+    <div class="metrics">
+      <div class="metric"><b>xG MODELLO</b>${num(a.lh)} – ${num(a.la)}</div>
+      <div class="metric"><b>ELO / POWER</b>${num(a.homePower)} – ${num(a.awayPower)}</div>
+      <div class="metric"><b>FORMA PESATA</b>${num(a.homeForm,2)} – ${num(a.awayForm,2)}</div>
+      <div class="metric"><b>RIPOSO</b>${a.homeRest??'—'}g – ${a.awayRest??'—'}g</div>
     </div>
-    <div class="row"><b>Entrambe segnano:</b> <span class="tag">Goal ${pct(a.btts)}</span><span class="tag">No Goal ${pct(a.noBtts)}</span></div>
+    <div class="row"><span class="badge ${qualityClass(a.confidence)}">Affidabilità ${esc(a.confidence)}</span>${a.sample!=null?`<span class="badge">campione ${a.sample}</span>`:''}</div>
+    <div class="row"><b>Risultati esatti:</b> ${(a.scores||[]).map(x=>`<span class="tag">${esc(x.score)} ${pct(x.p)}</span>`).join('')}</div>
+    <div class="row"><b>Gol:</b><span class="tag">O1.5 ${pct(a.over15)}</span><span class="tag">U1.5 ${pct(a.under15)}</span><span class="tag">O2.5 ${pct(a.over)}</span><span class="tag">U2.5 ${pct(a.under)}</span><span class="tag">O3.5 ${pct(a.over35)}</span><span class="tag">U3.5 ${pct(a.under35)}</span></div>
+    <div class="row"><b>Goal/No Goal:</b> <span class="tag">Goal ${pct(a.btts)}</span><span class="tag">No Goal ${pct(a.noBtts)}</span></div>
     <div class="row"><b>Doppia chance:</b> <span class="tag">1X ${pct(a.dc1x)}</span><span class="tag">12 ${pct(a.dc12)}</span><span class="tag">X2 ${pct(a.dcx2)}</span></div>
     <div class="row"><b>Draw No Bet:</b> <span class="tag">Casa ${pct(a.dnb1)}</span><span class="tag">Ospite ${pct(a.dnb2)}</span></div>
-    <div class="small">${e(a.method)}</div>
-    ${a.note?`<div class="notice">${e(a.note)}</div>`:''}
-    ${a.explain?`<div class="notice"><b>Perché il modello dice questo</b><br>
-      ${a.explain.map(v=>`• ${e(v)}`).join('<br>')}
-    </div>`:''}
-    <button class="detailbtn" onclick="loadDetails(${g.id},this)">Quote • Assenti • Formazioni</button>
-    <div class="details" id="details-${g.id}" style="display:none"></div>
+    <div class="small">${esc(a.method||'')}</div>
+    ${a.note?`<div class="notice">${esc(a.note)}</div>`:''}
+    ${a.explain?.length?`<div class="notice"><b>Perché il modello dice questo</b><br>${a.explain.map(v=>'• '+esc(v)).join('<br>')}</div>`:''}
+    <button class="detailbtn" onclick="loadDetails(${g.id},this)">Quote • Assenti • Formazioni • VALUE</button><div class="details" id="details-${g.id}" style="display:none"></div>
    </div>`);
-  });
+ }
 }
 
-
-const DETAIL_TTL=30*60*1000;
-function detailKey(id){return 'calcioai_v10_detail_'+id}
-function readDetailCache(id){
- try{
-  const x=JSON.parse(localStorage.getItem(detailKey(id))||'null');
-  if(!x||Date.now()-x.t>DETAIL_TTL)return null;
-  return x.d;
- }catch{return null}
-}
-function writeDetailCache(id,d){
- try{localStorage.setItem(detailKey(id),JSON.stringify({t:Date.now(),d}))}catch{}
-}
 async function loadDetails(id,btn){
  const panel=document.querySelector('#details-'+id);
  if(panel.style.display==='block'){panel.style.display='none';return}
  panel.style.display='block';
- const cached=readDetailCache(id);
- if(cached){renderDetails(panel,cached,true);return}
- panel.innerHTML='<span class="muted">Caricamento dettagli…</span>';
- btn.disabled=true;
+ const cached=cacheRead(keyDetail(id),DETAIL_TTL);if(cached){renderDetails(panel,cached,true);return}
+ panel.innerHTML='<span class="muted">Caricamento dettagli…</span>';btn.disabled=true;
  try{
    const r=await fetch('/api/details?fixture='+encodeURIComponent(id));
    const j=await r.json();
-   if(!r.ok||!j.ok){panel.innerHTML='<b>Dettagli non disponibili</b><br><span class="muted">'+e(j.message||'')+'</span>';return}
-   writeDetailCache(id,j);
-   renderDetails(panel,j,false);
- }catch(x){panel.innerHTML='<b>Errore</b><br><span class="muted">'+e(x.message)+'</span>'}
+   if(!r.ok||!j.ok){panel.innerHTML='<b>Dettagli non disponibili</b><br><span class="muted">'+esc(j.message||'')+'</span>';return}
+   cacheWrite(keyDetail(id),j);renderDetails(panel,j,false);
+ }catch(x){panel.innerHTML='<b>Errore</b><br><span class="muted">'+esc(x.message)+'</span>'}
  finally{btn.disabled=false}
 }
+
 function renderDetails(panel,j,cache){
- const o=j.odds||{}, inj=j.injuries||[], lu=j.lineups||[];
+ const o=j.odds||{},inj=j.injuries||[],lu=j.lineups||[];
  let oddsHtml='<span class="muted">Quote 1X2 non disponibili.</span>';
- if(o.home||o.draw||o.away){
-   oddsHtml=`<div class="oddsgrid"><div class="odd"><b>1</b><br>${e(o.home||'—')}</div><div class="odd"><b>X</b><br>${e(o.draw||'—')}</div><div class="odd"><b>2</b><br>${e(o.away||'—')}</div></div><div class="muted">${e(o.bookmaker||'Bookmaker')} ${o.updated?'• '+e(o.updated):''}</div>`;
- }
- let injuriesHtml=inj.length?inj.slice(0,16).map(x=>`<div class="playerline">${e(x.team)} — <b>${e(x.player)}</b> <span class="muted">${e(x.reason||'assente/dubbio')}</span></div>`).join(''):'<span class="muted">Nessuna informazione su assenti/infortunati disponibile per questa partita.</span>';
- let lineupsHtml=lu.length?lu.map(t=>`<div class="section"><b>${e(t.team)} ${t.formation?'('+e(t.formation)+')':''}</b>${(t.startXI||[]).slice(0,11).map(p=>`<div class="playerline">${e(p)}</div>`).join('')}</div>`).join(''):'<span class="muted">Formazioni ufficiali non ancora disponibili. Vengono mostrate appena API-Football le pubblica per la gara.</span>';
- const m=modelByFixture[j.fixture];
- let valueHtml='<span class="muted">VALUE non calcolabile: manca un pronostico del modello o le quote 1X2.</span>';
- if(m && !m.insufficient && o.home && o.draw && o.away){
-   const odds=[Number(o.home),Number(o.draw),Number(o.away)];
-   const probs=[m.p1,m.px,m.p2];
-   if(odds.every(x=>Number.isFinite(x)&&x>1) && probs.every(x=>Number.isFinite(x)&&x>0)){
-     const raw=odds.map(x=>1/x), sum=raw.reduce((a,b)=>a+b,0);
-     const market=raw.map(x=>x/sum);
-     const labels=['1','X','2'];
-     const rows=labels.map((lab,i)=>{
-       const edge=(probs[i]-market[i])*100;
-       const ev=(probs[i]*odds[i]-1)*100;
-       const fair=1/probs[i];
-       const cls=ev>=5?'positive':'';
-       return `<div class="valuerow ${cls}"><div><b>${lab}</b></div><div>Mod. ${(probs[i]*100).toFixed(1)}%</div><div>Merc. ${(market[i]*100).toFixed(1)}%</div><div>EV ${ev>=0?'+':''}${ev.toFixed(1)}%</div></div>`;
-     }).join('');
-     valueHtml=`<div class="valuebox">${rows}</div><div class="warning">“VALUE” = probabilità del modello superiore a quella implicita nelle quote. Non equivale a esito certo né a consiglio di puntata.</div>`;
+ if(o.home||o.draw||o.away)oddsHtml=`<div class="oddsgrid"><div class="odd"><b>1</b><br>${esc(o.home||'—')}</div><div class="odd"><b>X</b><br>${esc(o.draw||'—')}</div><div class="odd"><b>2</b><br>${esc(o.away||'—')}</div></div><div class="muted">${esc(o.bookmaker||'Bookmaker')} ${o.updated?'• '+esc(o.updated):''}</div>`;
+ const injuriesHtml=inj.length?inj.slice(0,20).map(x=>`<div class="playerline">${esc(x.team)} — <b>${esc(x.player)}</b> <span class="muted">${esc(x.reason||'assente/dubbio')}</span></div>`).join(''):'<span class="muted">Nessuna informazione su assenti/infortunati disponibile.</span>';
+ const lineupsHtml=lu.length?lu.map(t=>`<div class="section"><b>${esc(t.team)} ${t.formation?'('+esc(t.formation)+')':''}</b>${(t.startXI||[]).slice(0,11).map(p=>`<div class="playerline">${esc(p)}</div>`).join('')}</div>`).join(''):'<span class="muted">Formazioni ufficiali non ancora disponibili.</span>';
+ const m=modelByFixture[j.fixture];let valueHtml='<span class="muted">VALUE non calcolabile.</span>';
+ if(m&&!m.insufficient&&o.home&&o.draw&&o.away){
+   const odds=[+o.home,+o.draw,+o.away],probs=[m.p1,m.px,m.p2];
+   if(odds.every(x=>x>1)&&probs.every(x=>x>0)){
+     const raw=odds.map(x=>1/x),sum=raw.reduce((a,b)=>a+b,0),market=raw.map(x=>x/sum),labels=['1','X','2'];
+     valueHtml='<div class="valuebox">'+labels.map((lab,i)=>{
+       const edge=(probs[i]-market[i])*100,ev=(probs[i]*odds[i]-1)*100;
+       return `<div class="valuerow ${ev>=5?'positive':''}"><div><b>${lab}</b></div><div>Mod. ${(probs[i]*100).toFixed(1)}%</div><div>Merc. ${(market[i]*100).toFixed(1)}%</div><div>EV ${ev>=0?'+':''}${ev.toFixed(1)}%</div></div>`;
+     }).join('')+'</div><div class="warning">VALUE = confronto probabilistico, non esito certo né consiglio di puntata.</div>';
    }
  }
- panel.innerHTML=`<div class="muted">${cache?'Dati dalla cache locale':'Dati aggiornati'} • ${j.apiCalls} chiamate API${j.requestsRemaining!=null?' • '+j.requestsRemaining+' richieste rimaste oggi':''}</div>
+ panel.innerHTML=`<div class="muted">${cache?'Dati dalla cache locale':'Dati aggiornati'} • ${j.apiCalls??'—'} chiamate API${j.requestsRemaining!=null?' • '+j.requestsRemaining+' rimaste':''}</div>
  <div class="section"><b>Quote bookmaker</b>${oddsHtml}</div>
- <div class="section"><b>Confronto modello ↔ mercato (VALUE)</b>${valueHtml}</div>
+ <div class="section"><b>Confronto modello ↔ mercato</b>${valueHtml}</div>
  <div class="section"><b>Assenti / infortuni</b>${injuriesHtml}</div>
  <div class="section"><b>Formazioni ufficiali</b>${lineupsHtml}</div>`;
 }
