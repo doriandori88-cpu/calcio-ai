@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07111f">
-<title>Calcio AI 1.1</title>
+<title>Calcio AI 1.2</title>
 <style>
 :root{color-scheme:dark;--bg:#07111f;--card:#111d31;--soft:#172742;--line:#2a3c5c;--text:#f4f7fb;--muted:#93a4bf;--accent:#72cdf4;--good:#8ce99a;--warn:#ffd43b}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -27,8 +27,8 @@ select{background:#142239;color:#fff;min-width:230px;flex:1}button{background:va
 </head>
 <body><main>
 <div id="api-remaining" class="muted"></div>
-<h1>Calcio AI 1.1</h1>
-<p class="sub">Elo dinamico • forza avversari • forma pesata • casa/trasferta • riposo • mercati • VALUE</p>
+<h1>Calcio AI 1.2</h1>
+<p class="sub">Dati reali → Analisi → Previsioni • Elo separato dalla forza strutturale • H2H • VALUE</p>
 
 <div class="controls">
 <select id="league">
@@ -42,7 +42,7 @@ select{background:#142239;color:#fff;min-width:230px;flex:1}button{background:va
 </div>
 
 <div class="small">Cache locale 30 minuti + cache Cloudflare. I dettagli (quote, assenti, formazioni) vengono caricati solo quando apri una partita, per ridurre le chiamate API.</div>
-<div class="notice"><b>Modello 1.1</b><br>Le percentuali derivano da dati reali disponibili e da un modello Poisson calibrato con Elo, produzione/subiti, forma e contesto. “xG modello” indica i gol attesi stimati dal modello, non l’xG ufficiale del provider.</div>
+<div class="notice"><b>Modello 1.2</b><br>Tre livelli distinti: <b>Dati reali</b>, <b>Analisi del modello</b> e <b>Previsioni</b>. Elo dinamico e forza strutturale sono mostrati separatamente. “xG modello” indica i gol attesi stimati dal modello, non l’xG ufficiale del provider.</div>
 
 <div id="status">Caricamento…</div>
 <div id="matches"></div>
@@ -53,7 +53,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 const pct=x=>Number.isFinite(Number(x))?(Number(x)*100).toFixed(1)+'%':'—';
 const num=(x,d=2)=>Number.isFinite(Number(x))?Number(x).toFixed(d):'—';
 const CACHE_TTL=30*60*1000, DETAIL_TTL=30*60*1000;
-const keyLeague=l=>'calcioai_v11_'+l, keyDetail=id=>'calcioai_v11_detail_'+id;
+const keyLeague=l=>'calcioai_v12_'+l, keyDetail=id=>'calcioai_v12_detail_'+id;
 
 function cacheRead(k,ttl){try{const x=JSON.parse(localStorage.getItem(k)||'null');return x&&Date.now()-x.t<ttl?x.d:null}catch{return null}}
 function cacheWrite(k,d){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),d}))}catch{}}
@@ -65,7 +65,7 @@ async function load(force=false){
  if(cached&&!force){render(cached,true);return}
  st.textContent='Analisi in corso…';btn.disabled=true;
  try{
-   const r=await fetch('/api/analyze?league='+encodeURIComponent(league)+'&v=110'+(force?'&fresh=1':''));
+   const r=await fetch('/api/analyze?league='+encodeURIComponent(league)+'&v=120'+(force?'&fresh=1':''));
    const j=await r.json();
    const rem=document.getElementById('api-remaining');
    if(rem&&j.meta?.requestsRemaining!=null)rem.textContent=`API-Football: ${j.meta.requestsRemaining} richieste rimaste`;
@@ -98,12 +98,23 @@ function render(j,fromCache){
     <div class="meta">${esc(dt)}</div>
     <div class="teams"><span class="team"><img src="${esc(g.home.logo)}"><span>${esc(g.home.name)}</span></span><span>–</span><span class="team"><span>${esc(g.away.name)}</span><img src="${esc(g.away.logo)}"></span></div>
     <div class="grid"><div class="p ${a.p1===mx?'best':''}"><b>1</b><br>${pct(a.p1)}</div><div class="p ${a.px===mx?'best':''}"><b>X</b><br>${pct(a.px)}</div><div class="p ${a.p2===mx?'best':''}"><b>2</b><br>${pct(a.p2)}</div></div>
+    <div class="row"><b>DATI REALI</b></div>
     <div class="metrics">
-      <div class="metric"><b>xG MODELLO</b>${num(a.lh)} – ${num(a.la)}</div>
-      <div class="metric"><b>ELO / POWER</b>${num(a.homePower)} – ${num(a.awayPower)}</div>
+      <div class="metric"><b>GOL FATTI / GARA</b>${num(a.observed?.home?.gfPerMatch)} – ${num(a.observed?.away?.gfPerMatch)}</div>
+      <div class="metric"><b>GOL SUBITI / GARA</b>${num(a.observed?.home?.gaPerMatch)} – ${num(a.observed?.away?.gaPerMatch)}</div>
+      <div class="metric"><b>CASA / TRASFERTA GF</b>${num(a.observed?.home?.venueGF)} – ${num(a.observed?.away?.venueGF)}</div>
+      <div class="metric"><b>PPG STAGIONE</b>${num(a.observed?.home?.ppg)} – ${num(a.observed?.away?.ppg)}</div>
+    </div>
+    <div class="row"><b>ANALISI DEL MODELLO</b></div>
+    <div class="metrics">
+      <div class="metric"><b>ELO DINAMICO</b>${a.homeElo??'—'} – ${a.awayElo??'—'}</div>
+      <div class="metric"><b>FORZA STRUTTURALE</b>${num(a.homeStructural)} – ${num(a.awayStructural)}</div>
       <div class="metric"><b>FORMA PESATA</b>${num(a.homeForm,2)} – ${num(a.awayForm,2)}</div>
       <div class="metric"><b>RIPOSO</b>${a.homeRest??'—'}g – ${a.awayRest??'—'}g</div>
     </div>
+    ${a.h2h?`<div class="row"><b>SCONTRI DIRETTI (max 5)</b> <span class="tag">${esc(g.home.name)} ${a.h2h.homeWins}</span><span class="tag">X ${a.h2h.draws}</span><span class="tag">${esc(g.away.name)} ${a.h2h.awayWins}</span><span class="tag">Gol ${a.h2h.homeGoals}-${a.h2h.awayGoals}</span></div>`:''}
+    <div class="row"><b>PREVISIONI AI</b></div>
+    <div class="metrics"><div class="metric"><b>xG MODELLO</b>${num(a.lh)} – ${num(a.la)}</div><div class="metric"><b>POWER FINALE DEL MATCH</b>${num(a.homePower)} – ${num(a.awayPower)}</div></div>
     <div class="row"><span class="badge ${qualityClass(a.confidence)}">Affidabilità ${esc(a.confidence)}</span>${a.sample!=null?`<span class="badge">campione ${a.sample}</span>`:''}</div>
     <div class="row"><b>Risultati esatti:</b> ${(a.scores||[]).map(x=>`<span class="tag">${esc(x.score)} ${pct(x.p)}</span>`).join('')}</div>
     <div class="row"><b>Gol:</b><span class="tag">O1.5 ${pct(a.over15)}</span><span class="tag">U1.5 ${pct(a.under15)}</span><span class="tag">O2.5 ${pct(a.over)}</span><span class="tag">U2.5 ${pct(a.under)}</span><span class="tag">O3.5 ${pct(a.over35)}</span><span class="tag">U3.5 ${pct(a.under35)}</span></div>

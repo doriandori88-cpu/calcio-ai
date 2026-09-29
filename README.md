@@ -1,21 +1,20 @@
-# Calcio AI 1.0 — Cloudflare Pages
+# Calcio AI 1.2
 
-Versione convertita da Netlify a Cloudflare Pages.
+Versione separata dalla 1.1.1 stabile.
 
-## Struttura
-- `index.html` — interfaccia
-- `functions/api/analyze.js` — analisi pre-match
-- `functions/api/details.js` — quote, assenti e formazioni
-- `_routes.json` — esegue Functions solo su `/api/*`; la pagina statica non consuma richieste Worker
-- `tools/backtest_model.py` — utility locale, non viene eseguita sul sito
+## Novità principali
+- Tre livelli leggibili: Dati reali → Analisi del modello → Previsioni AI.
+- Elo dinamico mostrato come rating numerico, separato dalla forza strutturale.
+- Forza strutturale calcolata dal rendimento e normalizzata rispetto al campionato (1.00 = media).
+- Forma recente pesata per recenza e forza degli avversari.
+- Casa/trasferta mostrata con dati osservati.
+- H2H fino a 5 precedenti, con peso massimo molto basso (±3%) nel motore.
+- xG modello esplicitamente etichettato come stima del modello, non xG ufficiale.
+- Affidabilità e campione mantenuti visibili.
+- Rate-limit protection e cache upstream della 1.1.1 mantenuti.
 
-## Pubblicazione con Cloudflare Pages
-1. Crea un progetto Pages e carica/deploya questa cartella.
-2. In Settings > Variables and Secrets aggiungi il secret `API_FOOTBALL_KEY`.
-3. Non inserire la chiave API nei file del progetto.
-4. La pagina usa `/api/analyze` e `/api/details`.
+## Nota su tiri, corner e cartellini
+Non vengono inventati. L'attuale flusso API non fornisce nel dataset già caricato una base storica sufficiente per stimarli seriamente senza moltiplicare le chiamate /fixtures/statistics e rischiare nuovamente il limite per minuto. La 1.2 mostra quindi solo metriche che il motore può motivare con i dati effettivamente disponibili. La fase successiva dovrà aggiungere uno storico statistico persistente/cache dedicata prima di esporre queste previsioni.
 
-## Cache
-- Analisi base: browser 30 min, cache Cloudflare 6 ore.
-- Dettagli: browser 5 min, cache Cloudflare 30 min.
-- `_routes.json` limita le invocazioni alle sole API.
+## Installazione
+Caricare i file sul branch dedicato `calcio-ai-1.2`. Il Worker usa `worker.js`; `index.html` è incluso anche separatamente per leggibilità, ma è già incorporato in Base64 dentro `worker.js`.
