@@ -24,8 +24,8 @@ function ttlFor(path,data){
 function providerError(status,errors){
   const keys=Object.keys(errors||{}).join(' ').toLowerCase(),reason=Object.values(errors||{}).join(' ').toLowerCase();
   if(status===401||/token|key|authentication/.test(keys)||/invalid.*(?:key|token)|missing.*key/.test(reason))return new AppError('AUTH','Chiave API-Football non valida. Controlla il secret API_FOOTBALL_KEY.',401);
-  if(/subscription|subscribe|free plan|access.*season|plan.*access/.test(reason))return new AppError('PLAN','API-Football segnala una restrizione del piano o della stagione. Controlla il piano associato alla chiave.',403);
   if(status===429||/ratelimit/.test(keys)||/too many requests|quota|request.*limit|limit.*request/.test(reason))return new AppError('QUOTA','API-Football limita temporaneamente le richieste. Il caricamento riprenderà automaticamente.',429);
+  if(/subscription|subscribe|free plan|access.*season|plan.*access/.test(reason))return new AppError('PLAN','API-Football segnala una restrizione del piano o della stagione. Controlla il piano associato alla chiave.',403);
   if(status===403||/access|subscription|plan/.test(keys))return new AppError('PLAN','Il piano API-Football non consente questa richiesta. Controlla che Pro sia attivo.',403);
   return new AppError('UPSTREAM','API-Football non ha restituito dati validi. Riprova più tardi.');
 }
@@ -53,7 +53,7 @@ async function makeClient(request,env){
       catch(e){throw new AppError('NETWORK',e.name==='AbortError'?'API-Football non ha risposto in tempo. Riprova.':'Connessione ad API-Football non riuscita.');}
       finally{clearTimeout(timer);}
       const remaining=r.headers.get('x-ratelimit-requests-remaining');if(remaining!==null&&remaining!==''&&finite(Number(remaining)))stats.requestsRemaining=Number(remaining);
-      if(!r.ok||data?.errors&&Object.keys(data.errors).length){const e=providerError(r.status,data?.errors);if(e.code==='QUOTA')q.blockedUntil=Date.now()+60000;throw e;}
+      if(!r.ok||data?.errors&&Object.keys(data.errors).length){const e=providerError(r.status,data?.errors);const safeReason=Object.values(data?.errors||{}).map(String).join(' ').split(key).join('[chiave rimossa]').replace(/[A-Za-z0-9_+=\/-]{24,}/g,'[rimosso]').slice(0,300);e.message+=' ['+path.split('?')[0]+']'+(safeReason?' '+safeReason:'');if(e.code==='QUOTA')q.blockedUntil=Date.now()+60000;throw e;}
       if(!Array.isArray(data?.response))throw new AppError('SCHEMA','Risposta API-Football inattesa.');
       if(data.paging?.total>1)throw new AppError('PAGINATION','Risposta incompleta: più pagine non gestite.');
       if(data.results!=null&&Number(data.results)!==data.response.length)throw new AppError('SCHEMA','Conteggio risultati API-Football incoerente.');
