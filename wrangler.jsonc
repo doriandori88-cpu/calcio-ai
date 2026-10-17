@@ -8,5 +8,21 @@
       "invocation_logs": true,
       "persist": true
     }
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DATA_ARCHIVE",
+        "class_name": "CalcioArchive"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "calcio-archive-v1",
+      "new_sqlite_classes": [
+        "CalcioArchive"
+      ]
+    }
+  ]
 }
