@@ -355,9 +355,12 @@ export class CalcioArchive {
       if(saved)return json({...saved,coverage:undefined,meta:{...saved.meta,refreshing:this.busy}});
       return json({ok:false,code:'PREPARING',message:'Archivio in preparazione.',meta:{}},202);
     }
-    const job=await this.ctx.storage.get('recovery');
-    if(!job||job.until<Date.now())await this.ctx.storage.put('recovery',{until:Date.now()+30*60000,attempts:0});
-    return this.run(request);
+    this.busy=true;
+    try{
+      const job=await this.ctx.storage.get('recovery');
+      if(!job||job.until<Date.now())await this.ctx.storage.put('recovery',{until:Date.now()+30*60000,attempts:0});
+      return await this.run(request);
+    }finally{this.busy=false;}
   }
   async run(request){
     this.busy=true;
@@ -378,9 +381,12 @@ export class CalcioArchive {
   }
   async alarm(){
     if(this.busy){await this.ctx.storage.setAlarm(Date.now()+65000);return;}
-    const job=await this.ctx.storage.get('recovery');
-    if(!job||job.until<Date.now()||job.attempts>=20)return;
-    await this.run(new Request('https://archive.internal/api/analyze?league=135'));
+    this.busy=true;
+    try{
+      const job=await this.ctx.storage.get('recovery');
+      if(!job||job.until<Date.now()||job.attempts>=20)return;
+      await this.run(new Request('https://archive.internal/api/analyze?league=135'));
+    }finally{this.busy=false;}
   }
 }
 export default {
