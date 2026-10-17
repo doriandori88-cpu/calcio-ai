@@ -61,7 +61,7 @@ async function makeClient(request,env,storage=null){
         finally{clearTimeout(timer);}
         const remaining=r.headers.get('x-ratelimit-requests-remaining');if(remaining!==null&&remaining!==''&&finite(Number(remaining)))stats.requestsRemaining=Number(remaining);
         if(!r.ok||data?.errors&&Object.keys(data.errors).length){
-          const e=providerError(r.status,data?.errors);e.message+=' ['+path.split('?')[0]+']';
+          const e=providerError(r.status,data?.errors);const reason=Object.values(data?.errors||{}).map(String).join(' ').split(key).join('[chiave rimossa]').replace(/[A-Za-z0-9_+=\/-]{24,}/g,'[rimosso]').slice(0,240);e.message+=' ['+path.split('?')[0]+']'+(reason?' '+reason:'');
           if(e.code==='QUOTA'){throttle.blockedUntil=Date.now()+65000;q.blockedUntil=throttle.blockedUntil;if(storage)await storage.put('throttle',throttle);}
           throw e;
         }
@@ -146,10 +146,10 @@ async function attachXG(client,data,fixtures){
   // Query only fixtures not already archived, using stable per-fixture records thereafter.
   const batches=pending.filter(f=>!records.get(f.fixture.id)?.batchAt);
   let deferred=false;
-  for(let i=0;i<batches.length;i+=20){
-    const group=batches.slice(i,i+20);let p;
+  for(let i=0;i<batches.length;i+=10){
+    const group=batches.slice(i,i+10);let p;
     try{p=await client.get('/fixtures?ids='+group.map(f=>f.fixture.id).join('-'));}
-    catch(e){if(!optionalFailure(e))throw e;deferred=true;break;}
+    catch(e){if(!optionalFailure(e))throw e;if(client.stats)client.stats.recoveryError={code:e.code,message:e.message};deferred=true;break;}
     for(const f of group){
       const full=p.response.find(x=>x.fixture?.id===f.fixture.id);
       if(full?.fixture?.status?.short!=='FT'||full.league?.season!==f.league.season||full.teams?.home?.id!==f.teams.home.id||full.teams?.away?.id!==f.teams.away.id)continue;
@@ -162,7 +162,7 @@ async function attachXG(client,data,fixtures){
       const r=mergeStatistics(f,extra,records.get(f.fixture.id));
       // A successful dedicated response without a value is provider-unavailable, never zero.
       await save(f,{...r,checkedUntil:Date.now()+86400000});
-    }catch(e){if(!optionalFailure(e))throw e;deferred=true;break;}
+    }catch(e){if(!optionalFailure(e))throw e;if(client.stats)client.stats.recoveryError={code:e.code,message:e.message};deferred=true;break;}
   }
   const pairs=selected.filter(f=>f.xg),k=30;
   data.xgBase={home:(pairs.reduce((s,f)=>s+f.xg.home,0)+data.curAvg.home*k)/(pairs.length+k),away:(pairs.reduce((s,f)=>s+f.xg.away,0)+data.curAvg.away*k)/(pairs.length+k)};
