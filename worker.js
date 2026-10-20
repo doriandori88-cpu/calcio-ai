@@ -477,7 +477,8 @@ export class CalcioArchive {
     this.busy=true;const storage=scopedArchive(this.ctx.storage,league);
     try{
       const response=await handleApi(request,this.env,storage),body=await response.clone().json();
-      await storage.put('lastAttempt',{at:iso(),ok:body.ok,code:body.code||null,message:body.message||null,upstreamCalls:body.meta?.upstreamCalls||0});
+      const previous=await storage.get('lastAttempt'),calls=body.meta?.upstreamCalls||0;
+      await storage.put('lastAttempt',{at:iso(),upstreamAt:calls?iso():previous?.upstreamAt||null,ok:body.ok,code:body.code||null,message:body.message||null,upstreamCalls:calls});
       const job=await storage.get('recovery')||{until:0,attempts:60};
       if(body.ok){await archivePut(storage,'snapshot',body);if(!body.meta.statisticsDeferred)await storage.delete('recovery');}
       const recover=body.ok?body.meta.statisticsDeferred:['QUOTA','PREPARING','NETWORK'].includes(body.code);
@@ -486,9 +487,9 @@ export class CalcioArchive {
     }finally{this.busy=false;}
   }
   async jobs(){
-    const jobs=[];for(const league of [135,2]){const storage=scopedArchive(this.ctx.storage,league),job=await storage.get('recovery');if(job&&job.until>Date.now()&&job.attempts<60)jobs.push({league,at:Date.parse((await storage.get('lastAttempt'))?.at)||0});}return jobs.sort((a,b)=>a.at-b.at);
+    const jobs=[];for(const league of [135,2]){const storage=scopedArchive(this.ctx.storage,league),job=await storage.get('recovery');if(job&&job.until>Date.now()&&job.attempts<60)jobs.push({league,at:Date.parse((await storage.get('lastAttempt'))?.upstreamAt)||0});}return jobs.sort((a,b)=>a.at-b.at);
   }
-  async schedule(){if((await this.jobs()).length){if(!await this.ctx.storage.getAlarm())await this.ctx.storage.setAlarm(Date.now()+65000);}else await this.ctx.storage.deleteAlarm();}
+  async schedule(){if((await this.jobs()).length){const throttle=await this.ctx.storage.get('throttle')||{},next=Math.max(Date.now()+65000,(throttle.blockedUntil||0)+1000);const current=await this.ctx.storage.getAlarm();if(!current||current<(throttle.blockedUntil||0)+1000)await this.ctx.storage.setAlarm(next);}else await this.ctx.storage.deleteAlarm();}
   async alarm(){
     if(this.busy){await this.ctx.storage.setAlarm(Date.now()+65000);return;}
     this.busy=true;try{const job=(await this.jobs())[0];if(job)await this.run(new Request('https://archive.internal/api/analyze?league='+job.league),job.league);}finally{this.busy=false;}
