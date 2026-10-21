@@ -1,20 +1,78 @@
-# Calcio AI 1.2
+# Calcio AI 1.7
 
-Versione separata dalla 1.1.1 stabile.
+Worker Cloudflare su branch `calcio-ai-1.2`. `worker.js` contiene API e HTML incorporato;
+`index.html` ne è la copia leggibile. Il nome del branch e del Worker resta invariato.
 
-## Novità principali
-- Tre livelli leggibili: Dati reali → Analisi del modello → Previsioni AI.
-- Elo dinamico mostrato come rating numerico, separato dalla forza strutturale.
-- Forza strutturale calcolata dal rendimento e normalizzata rispetto al campionato (1.00 = media).
-- Forma recente pesata per recenza e forza degli avversari.
-- Casa/trasferta mostrata con dati osservati.
-- H2H fino a 5 precedenti, con peso massimo molto basso (±3%) nel motore.
-- xG modello esplicitamente etichettato come stima del modello, non xG ufficiale.
-- Affidabilità e campione mantenuti visibili.
-- Rate-limit protection e cache upstream della 1.1.1 mantenuti.
+## Confronto Champions
 
-## Nota su tiri, corner e cartellini
-Non vengono inventati. L'attuale flusso API non fornisce nel dataset già caricato una base storica sufficiente per stimarli seriamente senza moltiplicare le chiamate /fixtures/statistics e rischiare nuovamente il limite per minuto. La 1.2 mostra quindi solo metriche che il motore può motivare con i dati effettivamente disponibili. La fase successiva dovrà aggiungere uno storico statistico persistente/cache dedicata prima di esporre queste previsioni.
+Il modello precedente confrontava direttamente indici relativi a campionati diversi.
+La versione 1.7 attenua il dominio domestico (esponente 0,35 per forza e fattori
+attacco/difesa) e applica un riferimento storico fra federazioni a entrambe le
+componenti, risultati e xG. Nessuna eccezione basata sul nome di un club.
 
-## Installazione
-Caricare i file sul branch dedicato `calcio-ai-1.2`. Il Worker usa `worker.js`; `index.html` è incluso anche separatamente per leggibilità, ma è già incorporato in Base64 dentro `worker.js`.
+Il riferimento è la classifica **finale 2025**, relativa al quinquennio
+2020/21–2024/25, non la classifica live e non un rating dei singoli club.
+Dati: https://kassiesa.net/uefa/data/method5/crank2025.html
+Metodo UEFA: https://www.uefa.com/nationalassociations/uefarankings/country/
+
+Moltiplicatore gol casa: `exp(0.025 * (rankAway - rankHome))`, limitato a
+`[1/2.2, 2.2]`; per l'ospite si usa il reciproco. Si applica dopo il blend xG.
+I parametri sono **euristici, non stimati con un backtest**. La qualità dati
+Champions resta bassa. Il coefficiente nazionale è solo una correzione iniziale:
+non dimostra che una squadra specifica sia più forte di un'altra.
+
+Il riferimento è utilizzabile per gare dal 1 luglio 2025 al 30 giugno 2027;
+fuori dall'intervallo, o con paese non riconosciuto, il confronto fra campionati
+si astiene invece di equiparare implicitamente le leghe. La mappatura usa il paese
+nei metadati API-Football della lega già identificata. Stesso campionato: fattore 1.
+Prima della stagione 2027/28 occorre aggiornare e verificare il riferimento.
+
+## Contesto e motivazioni
+
+Il pulsante **Contesto, motivazioni e scontri diretti**, presente in entrambe le
+competizioni, carica `/api/details?fixture=ID` su richiesta. Usa la classifica
+API-Football della competizione e stagione della gara, con punti, gare giocate,
+fase/gruppo, distanza dalla capolista, zona indicata dal provider e aggiornamento.
+Una lettura motivazionale è esplicitamente un'ipotesi, non una misura psicologica.
+Nessun bonus automatico nelle probabilità. Classifiche di gruppi/fasi ambigui sono
+escluse; per gare già iniziate non si mostra la classifica corrente come prepartita.
+Quote, assenze e formazioni non sono integrate.
+
+## Scontri diretti
+
+Ricerca dedicata `/fixtures/headtohead` tra gli ID esatti, in tutte le competizioni:
+fino a 10 gare ufficiali nei cinque anni precedenti. La tabella mostra data,
+competizione, sede reale e risultato sui 90 minuti. Esclude duplicati, amichevoli,
+gare future e risultati AET/PEN senza punteggio valido sui 90 minuti.
+Le vittorie del riepilogo sono riferite alle due squadre della partita analizzata,
+non al campo in cui si disputarono i precedenti. Gli H2H sono solo descrittivi.
+Dati mancanti o richieste fallite sono distinti da zero precedenti.
+
+Classifica e storico vengono richiesti all'apertura dei dettagli per non rallentare
+il recupero dei campionati e delle statistiche. Cache classifica: 1 ora; H2H: 6 ore.
+Chiudere e riaprire i dettagli permette di ritentare in caso di errore temporaneo.
+
+## Verifica e pubblicazione
+
+Richiede Node 22+ per i test locali:
+
+```sh
+node --check worker.js
+node --test test-worker.cjs
+```
+
+Il confronto numerico Serie A con la versione precedente può essere abilitato con:
+
+```sh
+git show de797193fb74cdc441ddc0a64271c4b06ba5f897:worker.js > original-worker.js
+node --test test-worker.cjs
+```
+
+Senza quel file il solo confronto con la versione precedente viene saltato.
+I test usano una data fissa e dati sintetici: non costituiscono validazione predittiva
+su partite reali e non riproducono i dati originali Sabah–Dortmund.
+
+Le versioni nuove sono `1.7.0-af` e `1.7.0-af-ucl`: storico distinto dalle versioni
+precedenti, importazione 1.5/1.6 conservata e snapshot previsionali precedenti
+invalidati. L'archivio dei dati API-Football rimane riutilizzabile.
+`wrangler.jsonc` e secret `API_FOOTBALL_KEY` restano quelli esistenti.

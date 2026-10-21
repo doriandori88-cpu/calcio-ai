@@ -1,174 +1,161 @@
 <!doctype html>
-<html lang="it">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#07111f">
-<title>Calcio AI 1.2</title>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#07111f"><title>Calcio AI 1.7 · Serie A e Champions + xG</title>
 <style>
-:root{color-scheme:dark;--bg:#07111f;--card:#111d31;--soft:#172742;--line:#2a3c5c;--text:#f4f7fb;--muted:#93a4bf;--accent:#72cdf4;--good:#8ce99a;--warn:#ffd43b}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{max-width:900px;margin:auto;padding:30px 16px 60px}h1{font-size:38px;margin:0 0 6px}.sub,.meta,.small,.muted{color:var(--muted)}.sub{margin-top:0}
-.controls{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}select,button{border:0;border-radius:14px;padding:13px 14px;font-size:16px}
-select{background:#142239;color:#fff;min-width:230px;flex:1}button{background:var(--accent);font-weight:750;color:#064f78;cursor:pointer}button:disabled{opacity:.55}
-#status,.match{margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card)}
-.teams{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:750;font-size:19px;margin:12px 0}.team{display:flex;align-items:center;gap:8px;min-width:0}.team img{width:34px;height:34px;object-fit:contain}.team span{overflow:hidden;text-overflow:ellipsis}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.p{background:var(--soft);border-radius:12px;padding:10px;text-align:center}.best{outline:2px solid var(--accent)}
-.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.metric{background:#0d192b;border-radius:12px;padding:10px}.metric b{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
-.row{margin-top:12px;line-height:1.55}.tag{display:inline-block;background:var(--soft);padding:6px 9px;border-radius:9px;margin:3px 4px 3px 0}
-.small{font-size:13px;margin-top:9px}.notice{font-size:13px;color:#c5d4e8;margin-top:10px;padding:9px 10px;background:var(--soft);border-radius:10px}
-.detailbtn{margin-top:14px;background:#203653;color:#d9ecff;width:100%}.details{margin-top:12px;padding:12px;background:#0d192b;border-radius:12px}
-.section{margin-top:12px}.section>b{display:block;margin-bottom:6px}.playerline{padding:4px 0;border-bottom:1px solid #20304a}
-.oddsgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.odd{background:var(--soft);border-radius:10px;padding:8px;text-align:center}
-.valuebox{margin-top:10px;background:var(--soft);border-radius:12px;padding:10px}.valuerow{display:grid;grid-template-columns:36px 1fr 1fr 1fr;gap:6px;padding:6px 0;border-bottom:1px solid #253752;font-size:13px}.valuerow:last-child{border-bottom:0}.positive{font-weight:750;color:var(--good)}.warning{font-size:12px;color:var(--muted);margin-top:8px}
-.badge{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:4px 8px;margin:0 5px 5px 0}.quality-good{color:var(--good)}.quality-warn{color:var(--warn)}
-@media(max-width:600px){main{padding-top:24px}h1{font-size:34px}.teams{font-size:16px}.team img{width:30px;height:30px}.metrics{grid-template-columns:1fr}.valuerow{font-size:12px}}
-</style>
-</head>
-<body><main>
-<div id="api-remaining" class="muted"></div>
-<h1>Calcio AI 1.2</h1>
-<p class="sub">Dati reali → Analisi → Previsioni • Elo separato dalla forza strutturale • H2H • VALUE</p>
-
-<div class="controls">
-<select id="league">
-<option value="135">🇮🇹 Serie A</option><option value="136">🇮🇹 Serie B</option>
-<option value="39">🇬🇧 Premier League</option><option value="140">🇪🇸 La Liga</option>
-<option value="78">🇩🇪 Bundesliga</option><option value="61">🇫🇷 Ligue 1</option>
-<option value="88">🇳🇱 Eredivisie</option><option value="94">🇵🇹 Primeira Liga</option>
-<option value="2">🇪🇺 Champions League</option><option value="3">🇪🇺 Europa League</option>
-</select>
-<button id="refresh" onclick="load(true)">Aggiorna</button>
-</div>
-
-<div class="small">Cache locale 30 minuti + cache Cloudflare. I dettagli (quote, assenti, formazioni) vengono caricati solo quando apri una partita, per ridurre le chiamate API.</div>
-<div class="notice"><b>Modello 1.2</b><br>Tre livelli distinti: <b>Dati reali</b>, <b>Analisi del modello</b> e <b>Previsioni</b>. Elo dinamico e forza strutturale sono mostrati separatamente. “xG modello” indica i gol attesi stimati dal modello, non l’xG ufficiale del provider.</div>
-
-<div id="status">Caricamento…</div>
+:root{color-scheme:dark;--bg:#07111f;--card:#111e30;--soft:#182b43;--line:#2b405b;--text:#f3f7fc;--muted:#afbdd0;--accent:#79d7ef;--warn:#ffd482}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,sans-serif}main{max-width:980px;margin:auto;padding:30px 18px 64px}h1{margin:0;font-size:clamp(30px,5vw,42px);letter-spacing:-1px}h2{font-size:21px;margin:0 0 12px}h3{font-size:16px;margin:16px 0 8px}.eyebrow{color:var(--accent);text-transform:uppercase;letter-spacing:2px;font-size:11px;font-weight:700}.muted,.small{color:var(--muted)}.small{font-size:13px}.intro{max-width:620px;margin:8px 0 22px}.controls,.filters,.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:18px 0}label{display:grid;gap:5px;font-size:13px;color:var(--muted);flex:1;min-width:140px}select,input,button{font:inherit;padding:12px;border-radius:11px;border:1px solid var(--line);background:var(--soft);color:var(--text);min-height:44px;max-width:100%}button{cursor:pointer;font-weight:650}button.primary{background:var(--accent);color:#07384a;border-color:var(--accent)}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.notice,#status,.match,.history{padding:16px;border:1px solid var(--line);border-radius:15px;background:var(--card);margin:14px 0}.notice{font-size:13px;color:var(--muted)}.warning{color:var(--warn)}.teams{display:flex;gap:12px;justify-content:space-between;align-items:center;margin:12px 0 20px;font-weight:750;font-size:20px}.team{display:flex;gap:9px;align-items:center;flex:1;min-width:0}.team:last-child{justify-content:end;text-align:right}.team img{width:32px;height:32px;object-fit:contain}.team span{overflow-wrap:anywhere}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.prob{padding:13px 6px;border-radius:12px;background:var(--soft);text-align:center}.prob strong{display:block;font-size:25px}.best{box-shadow:inset 0 0 0 1px var(--accent)}.badge{display:inline-block;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:4px 9px;margin:8px 5px 0 0}.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0}.metric{padding:12px;background:#0d1829;border-radius:10px}.metric b{display:block;color:var(--muted);font-size:12px;margin-bottom:4px}details{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}summary{cursor:pointer;color:var(--accent);min-height:36px}.tag{display:inline-block;background:var(--soft);border-radius:8px;padding:5px 8px;margin:4px 4px 0 0;font-size:13px}.explain{padding-left:22px;color:var(--muted);font-size:13px}.detailbtn{width:100%;margin-top:15px}.panel{margin-top:12px}.playerline{padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:10px 7px;border-bottom:1px solid var(--line);white-space:nowrap}.hidden,[hidden]{display:none!important}progress{width:100%;height:5px;accent-color:var(--accent)}.history{margin-top:26px}footer{margin-top:30px;color:var(--muted);font-size:12px}#storage-warning:empty{display:none}.filter-empty{text-align:center;padding:20px;color:var(--muted)}
+@media(max-width:560px){main{padding:22px 12px 50px}.teams{font-size:16px;gap:7px}.team{gap:6px}.team img{width:26px;height:26px}.metrics{grid-template-columns:1fr}.prob strong{font-size:22px}.controls button{flex:1}.match{padding:13px}.filters label{min-width:120px}}
+</style></head><body><main>
+<div class="eyebrow">Dati • probabilità • verifica</div><h1>Calcio AI <span class="muted">1.7 · Serie A e Champions + xG</span></h1>
+<p class="intro muted">Un quadro della partita, con probabilità, dati disponibili e motivi della stima.</p>
+<div class="controls"><label>Competizione<select id="league"><option value="135">🇮🇹 Serie A</option><option value="2">🏆 Champions League</option></select></label><button id="refresh" class="primary">Aggiorna</button><button id="cancel" hidden>Interrompi</button></div>
+<div id="status" role="status" aria-live="polite">Pronto.</div>
+<div id="storage-warning" class="notice warning" role="status"></div>
+<div class="filters"><label>Cerca squadra<input id="search" type="search" placeholder="Nome squadra" autocomplete="off"></label><label>Giorno<select id="date"><option value="">Tutti i prossimi 14 giorni</option></select></label></div>
+<div class="notice">Previsioni preliminari sui <b>90 minuti</b>. La stima usa gli xG recenti disponibili, Elo e dati casa/trasferta. Quote, assenze e formazioni non entrano nel calcolo. Qualità dei dati e probabilità dell’esito sono due cose diverse. Il modello è sperimentale e non ancora validato.</div>
 <div id="matches"></div>
-
-<script>
-const modelByFixture={};
+<section class="history"><h2>Come sta andando il modello?</h2><p class="small">Il primo pronostico valido di ogni partita e versione viene salvato prima del calcio d’inizio, solo su questo browser. Aggiorna i risultati per confrontarlo con gli esiti reali. Non vengono ricostruiti pronostici dopo la partita.</p><div class="actions"><button id="check-results">Verifica risultati</button><button id="export-history">Esporta storico</button><label>Ripristina un’esportazione<input id="import-history" type="file" accept="application/json,.json"></label></div><div id="history-status" role="status" aria-live="polite"></div><div id="history-summary"></div><details><summary>Pronostici registrati</summary><div id="history-table" class="tablewrap"></div></details></section>
+<details><summary>Metodo e aggiornamento dei dati</summary><p class="small">Serie A e Champions League, stagioni correnti dichiarate dal provider. In Champions la base è il campionato corrente di ciascun club: gli abbinamenti usano gli ID esatti API-Football. Coppe e campionato restano separati; nessuna percentuale se manca il campionato o ci sono meno di 4 gare domestiche. Il contributo europeo è prudente e la forza fra leghe non è calibrata. Le previsioni riguardano soltanto i 90 minuti, non la qualificazione. Elo dinamico, risultati e rendimento casa/trasferta regolarizzati. xG delle ultime 8 gare per squadra: le gare recenti e la sede corretta pesano di più; correzione prudente per la forza Elo dell’avversario prima della gara. Il contributo xG si attiva da 4 gare valide per entrambe le squadre e si riduce quando mancano dati. Gli xG mancanti non sono zeri. Le medie xG mostrate sono ponderate; i gol futuri sono stime, non dati osservati.</p><p class="small">Fonte: API-Football. Le statistiche concluse recuperate sono conservate in un archivio persistente per partita. Il recupero dei dati mancanti prosegue automaticamente, anche a pagina chiusa, per un massimo di 60 minuti per sessione; i dati confermati assenti sono ricontrollati dopo 24 ore. Le statistiche non ancora recuperate restano escluse, non valgono zero. Elenco gare: cache 10 minuti per Serie A, 60 minuti per Champions e altri campionati; stagione: 6 ore; gare concluse con statistiche: 6 ore; statistiche richieste singolarmente: 24 ore (15 minuti se xG assenti); risultati non conclusi: 2 minuti. Aggiorna rispetta la cache. Non è un servizio live. Quote, assenze e formazioni non entrano nel modello. H2H solo descrittivi.</p><p class="small">Poisson indipendente con pesi euristici, ancora da validare sullo storico. Lo storico 1.4 resta conservato nel browser ma separato, perché i provider usano ID diversi. Esportalo dalla vecchia versione prima della sostituzione. Il nuovo storico è locale e non certificato.</p></details>
+<footer>Calcio AI 1.7 · Serie A e Champions + xG · Nessuna probabilità garantisce un esito. Probabilità euristiche da verificare sullo storico delle partite.</footer>
+</main><script>
+'use strict';
+const UI_VERSION='1.7.0-af', HISTORY_KEY='calcioai_history_af_v15';
+const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const pct=x=>Number.isFinite(Number(x))?(Number(x)*100).toFixed(1)+'%':'—';
-const num=(x,d=2)=>Number.isFinite(Number(x))?Number(x).toFixed(d):'—';
-const CACHE_TTL=30*60*1000, DETAIL_TTL=30*60*1000;
-const keyLeague=l=>'calcioai_v12_'+l, keyDetail=id=>'calcioai_v12_detail_'+id;
-
-function cacheRead(k,ttl){try{const x=JSON.parse(localStorage.getItem(k)||'null');return x&&Date.now()-x.t<ttl?x.d:null}catch{return null}}
-function cacheWrite(k,d){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),d}))}catch{}}
-
+const numeric=x=>((typeof x==='number'||typeof x==='string'&&x.trim()!=='')&&Number.isFinite(Number(x)))?Number(x):null;
+const num=(x,d=2)=>numeric(x)===null?'—':Number(x).toFixed(d);
+const pct=x=>numeric(x)===null?'—':(Number(x)*100).toFixed(1)+'%';
+const fmt=x=>Number.isFinite(Date.parse(x))?new Date(x).toLocaleString('it-IT',{timeZone:'Europe/Rome',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'non disponibile';
+const dateRome=x=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(x));
+const validProbs=a=>a&&[a.p1,a.px,a.p2].every(p=>typeof p==='number'&&Number.isFinite(p)&&p>=0&&p<=1)&&Math.abs(a.p1+a.px+a.p2-1)<1e-6;
+let recoveryTimer=null,recoveryTries=0,active=null,loadSeq=0,current=null,currentStale=false,history=[],storageOK=true;
+const modelByFixture=new Map(),detailCache=new Map();
+function readStore(key){try{return JSON.parse(localStorage.getItem(key)||'null');}catch{return null;}}
+function writeStore(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{storageOK=false;$('#storage-warning').textContent='Salvataggio locale non disponibile o spazio esaurito. Esporta lo storico per conservarlo.';return false;}}
+function validRecord(r){return r&&Number.isSafeInteger(r.id)&&r.id>0&&typeof r.version==='string'&&r.version.length<30&&typeof r.home==='string'&&typeof r.away==='string'&&r.home.length<150&&r.away.length<150&&Number.isFinite(Date.parse(r.kickoff))&&Number.isFinite(Date.parse(r.savedAt))&&Number.isFinite(Date.parse(r.generatedAt))&&Date.parse(r.generatedAt)<=Date.parse(r.savedAt)&&Date.parse(r.savedAt)<Date.parse(r.kickoff)&&validProbs(r.probs);}
+function cleanRecord(r){return {id:r.id,version:r.version,league:String(r.league||''),home:r.home,away:r.away,kickoff:r.kickoff,savedAt:r.savedAt,generatedAt:r.generatedAt,probs:{p1:r.probs.p1,px:r.probs.px,p2:r.probs.p2}};}
+function readHistory(){const rows=readStore(HISTORY_KEY);history=Array.isArray(rows)?rows.filter(validRecord).slice(0,2000):[];}
+function saveHistory(){writeStore(HISTORY_KEY,history);renderHistory();}
+function capture(j){
+  const now=Date.now(),generated=Date.parse(j.meta?.generatedAt);
+  if(!Number.isFinite(generated)||generated>now||now-generated>20*60000)return;
+  let changed=false;
+  for(const g of j.matches){
+    if(g.status!=='NS'||Date.parse(g.date)<=now||!validProbs(g.analysis)||g.analysis.insufficient)continue;
+    if(history.some(r=>r.id===g.id&&r.version===j.meta.version))continue;
+    if(history.length>=2000){$('#storage-warning').textContent='Storico pieno (2.000 pronostici). Esportalo; i record esistenti restano conservati.';break;}
+    history.push({id:g.id,version:j.meta.version,league:j.meta.leagueName,home:g.home.name,away:g.away.name,kickoff:g.date,savedAt:new Date(now).toISOString(),generatedAt:j.meta.generatedAt,probs:{p1:g.analysis.p1,px:g.analysis.px,p2:g.analysis.p2}});changed=true;
+  }
+  if(changed)saveHistory();
+}
+function abortError(){return new DOMException('Operazione interrotta','AbortError');}
+function delay(ms,signal){return new Promise((resolve,reject)=>{if(signal?.aborted)return reject(abortError());const onAbort=()=>{clearTimeout(t);reject(abortError());};const t=setTimeout(()=>{signal?.removeEventListener('abort',onAbort);resolve();},ms);signal?.addEventListener('abort',onAbort,{once:true});});}
+async function requestJSON(url,signal,onProgress){
+  let quotaRetries=0;
+  for(let attempt=1;attempt<=20;attempt++){
+    if(signal?.aborted)throw abortError();
+    const ctl=new AbortController(),abort=()=>ctl.abort();signal?.addEventListener('abort',abort,{once:true});
+    const timer=setTimeout(()=>ctl.abort(),30000);let res,j;
+    try{res=await fetch(url,{signal:ctl.signal,cache:'no-store'});j=await res.json();}
+    catch(e){if(signal?.aborted)throw abortError();throw new Error(e.name==='AbortError'?'Tempo di attesa scaduto. Riprova: i dati già preparati restano in cache.':'Impossibile leggere la risposta del server. Riprova.');}
+    finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
+    if(res.status===202&&j.code==='PREPARING'){onProgress?.(attempt,j.meta);await delay(2000,signal);continue;}
+    if(res.status===429&&j.code==='QUOTA'&&quotaRetries<3){quotaRetries++;for(let left=65;left>0;left--){onProgress?.(attempt,{...j.meta,retrySeconds:left});await delay(1000,signal);}continue;}
+    if(!res.ok||!j.ok)throw new Error(j.message||'Dati non disponibili.');
+    return j;
+  }
+  throw new Error('Preparazione ancora incompleta dopo 20 passaggi. Premi Aggiorna per riprendere.');
+}
+function validPayload(j){return j?.ok&&Array.isArray(j.matches)&&[UI_VERSION,'1.7.0-af-ucl'].includes(j.meta?.version);}
 async function load(force=false){
- const league=document.querySelector('#league').value,st=document.querySelector('#status'),box=document.querySelector('#matches'),btn=document.querySelector('#refresh');
- box.innerHTML='';
- const cached=cacheRead(keyLeague(league),CACHE_TTL);
- if(cached&&!force){render(cached,true);return}
- st.textContent='Analisi in corso…';btn.disabled=true;
- try{
-   const r=await fetch('/api/analyze?league='+encodeURIComponent(league)+'&v=120'+(force?'&fresh=1':''));
-   const j=await r.json();
-   const rem=document.getElementById('api-remaining');
-   if(rem&&j.meta?.requestsRemaining!=null)rem.textContent=`API-Football: ${j.meta.requestsRemaining} richieste rimaste`;
-   if(!r.ok||!j.ok){st.innerHTML='<b>Errore</b><br>'+esc(j.message||'Errore sconosciuto');return}
-   cacheWrite(keyLeague(league),j);render(j,false);
- }catch(x){st.textContent='Errore: '+x.message}
- finally{btn.disabled=false}
+  clearTimeout(recoveryTimer);active?.abort();active=new AbortController();const ctl=active,seq=++loadSeq;
+  const league=$('#league').value,key='calcioai_af_v17_'+league,saved=readStore(key);
+  current=null;currentStale=false;modelByFixture.clear();$('#matches').innerHTML='';
+  $('#date').innerHTML='<option value="">Tutti i prossimi 14 giorni</option>';
+  $('#refresh').disabled=true;$('#cancel').hidden=false;
+  const usable=validPayload(saved)&&Date.now()-Date.parse(saved.meta.generatedAt)<24*3600000;
+  if(usable){current=saved;currentStale=true;setDates();renderMatches();}
+  $('#status').textContent=usable?'Controllo aggiornamenti… Mostro intanto l’ultima copia salvata.':'Preparazione dei dati… Il primo caricamento può richiedere più passaggi.';
+  try{
+    if(!force&&usable&&saved.meta.dataRevision==='archive-context-2'&&!saved.meta.statisticsDeferred&&Date.now()-Date.parse(saved.meta.generatedAt)<60000){currentStale=false;showPayload(saved);return;}
+    const j=await requestJSON('/api/analyze?league='+encodeURIComponent(league),ctl.signal,(n,m)=>{if(seq!==loadSeq)return;$('#status').textContent=m?.retrySeconds?`Pausa richiesta da API-Football: ripresa automatica tra ${m.retrySeconds} secondi. I dati già scaricati restano conservati.`:`Preparazione, passaggio ${n}/20 · ${m?.cacheHits??0} risposte recuperate dalla cache in questo passaggio. Puoi interrompere o cambiare campionato.`;});
+    if(seq!==loadSeq)return;
+    if(!validPayload(j))throw new Error('Formato del pronostico non valido.');
+    writeStore(key,j);currentStale=false;showPayload(j);if(!j.meta.statisticsDeferred&&!j.meta.staleSource)capture(j);if(j.meta.statisticsDeferred&&recoveryTries<60){recoveryTries++;recoveryTimer=setTimeout(()=>load(true),65000);}else if(!j.meta.statisticsDeferred)recoveryTries=0;
+  }catch(e){if(seq!==loadSeq)return;$('#status').textContent=(e.name==='AbortError'?'Caricamento interrotto.':e.message)+(current?' Mostro una copia precedente: non usarla come aggiornamento attuale.':'');currentStale=!!current;renderMatches();}
+  finally{if(seq===loadSeq){$('#refresh').disabled=false;$('#cancel').hidden=true;}}
 }
-
-function qualityClass(q){return /alta|buona/.test(q||'')?'quality-good':/bassa/.test(q||'')?'quality-warn':''}
-
-function render(j,fromCache){
- const st=document.querySelector('#status'),box=document.querySelector('#matches');box.innerHTML='';
- const calls=j.meta?.apiCalls??'—';
- st.textContent=`${j.matches.length} partite • ${j.meta.leagueName} • ${fromCache?'cache locale':'dati aggiornati'} • ${calls} chiamate API • modello ${j.meta.version}`;
- if(!j.matches.length){box.innerHTML='<div class="match">Nessuna partita nei prossimi 14 giorni.</div>';return}
- for(const g of j.matches){
-   const a=g.analysis;modelByFixture[g.id]=a;
-   const dt=new Date(g.date).toLocaleString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-   if(a.insufficient){
-     box.insertAdjacentHTML('beforeend',`<div class="match"><div class="meta">${esc(dt)}</div>
-     <div class="teams"><span class="team"><img src="${esc(g.home.logo)}"><span>${esc(g.home.name)}</span></span><span>–</span><span class="team"><span>${esc(g.away.name)}</span><img src="${esc(g.away.logo)}"></span></div>
-     <div class="notice"><b>Dati insufficienti</b><br>${esc(a.reason||'')}</div>
-     ${a.explain?`<div class="notice">${a.explain.map(v=>'• '+esc(v)).join('<br>')}</div>`:''}
-     <button class="detailbtn" onclick="loadDetails(${g.id},this)">Quote • Assenti • Formazioni</button><div class="details" id="details-${g.id}" style="display:none"></div></div>`);
-     continue;
-   }
-   const vals=[a.p1,a.px,a.p2],mx=Math.max(...vals);
-   box.insertAdjacentHTML('beforeend',`<div class="match">
-    <div class="meta">${esc(dt)}</div>
-    <div class="teams"><span class="team"><img src="${esc(g.home.logo)}"><span>${esc(g.home.name)}</span></span><span>–</span><span class="team"><span>${esc(g.away.name)}</span><img src="${esc(g.away.logo)}"></span></div>
-    <div class="grid"><div class="p ${a.p1===mx?'best':''}"><b>1</b><br>${pct(a.p1)}</div><div class="p ${a.px===mx?'best':''}"><b>X</b><br>${pct(a.px)}</div><div class="p ${a.p2===mx?'best':''}"><b>2</b><br>${pct(a.p2)}</div></div>
-    <div class="row"><b>DATI REALI</b></div>
-    <div class="metrics">
-      <div class="metric"><b>GOL FATTI / GARA</b>${num(a.observed?.home?.gfPerMatch)} – ${num(a.observed?.away?.gfPerMatch)}</div>
-      <div class="metric"><b>GOL SUBITI / GARA</b>${num(a.observed?.home?.gaPerMatch)} – ${num(a.observed?.away?.gaPerMatch)}</div>
-      <div class="metric"><b>CASA / TRASFERTA GF</b>${num(a.observed?.home?.venueGF)} – ${num(a.observed?.away?.venueGF)}</div>
-      <div class="metric"><b>PPG STAGIONE</b>${num(a.observed?.home?.ppg)} – ${num(a.observed?.away?.ppg)}</div>
-    </div>
-    <div class="row"><b>ANALISI DEL MODELLO</b></div>
-    <div class="metrics">
-      <div class="metric"><b>ELO DINAMICO</b>${a.homeElo??'—'} – ${a.awayElo??'—'}</div>
-      <div class="metric"><b>FORZA STRUTTURALE</b>${num(a.homeStructural)} – ${num(a.awayStructural)}</div>
-      <div class="metric"><b>FORMA PESATA</b>${num(a.homeForm,2)} – ${num(a.awayForm,2)}</div>
-      <div class="metric"><b>RIPOSO</b>${a.homeRest??'—'}g – ${a.awayRest??'—'}g</div>
-    </div>
-    ${a.h2h?`<div class="row"><b>SCONTRI DIRETTI (max 5)</b> <span class="tag">${esc(g.home.name)} ${a.h2h.homeWins}</span><span class="tag">X ${a.h2h.draws}</span><span class="tag">${esc(g.away.name)} ${a.h2h.awayWins}</span><span class="tag">Gol ${a.h2h.homeGoals}-${a.h2h.awayGoals}</span></div>`:''}
-    <div class="row"><b>PREVISIONI AI</b></div>
-    <div class="metrics"><div class="metric"><b>xG MODELLO</b>${num(a.lh)} – ${num(a.la)}</div><div class="metric"><b>POWER FINALE DEL MATCH</b>${num(a.homePower)} – ${num(a.awayPower)}</div></div>
-    <div class="row"><span class="badge ${qualityClass(a.confidence)}">Affidabilità ${esc(a.confidence)}</span>${a.sample!=null?`<span class="badge">campione ${a.sample}</span>`:''}</div>
-    <div class="row"><b>Risultati esatti:</b> ${(a.scores||[]).map(x=>`<span class="tag">${esc(x.score)} ${pct(x.p)}</span>`).join('')}</div>
-    <div class="row"><b>Gol:</b><span class="tag">O1.5 ${pct(a.over15)}</span><span class="tag">U1.5 ${pct(a.under15)}</span><span class="tag">O2.5 ${pct(a.over)}</span><span class="tag">U2.5 ${pct(a.under)}</span><span class="tag">O3.5 ${pct(a.over35)}</span><span class="tag">U3.5 ${pct(a.under35)}</span></div>
-    <div class="row"><b>Goal/No Goal:</b> <span class="tag">Goal ${pct(a.btts)}</span><span class="tag">No Goal ${pct(a.noBtts)}</span></div>
-    <div class="row"><b>Doppia chance:</b> <span class="tag">1X ${pct(a.dc1x)}</span><span class="tag">12 ${pct(a.dc12)}</span><span class="tag">X2 ${pct(a.dcx2)}</span></div>
-    <div class="row"><b>Draw No Bet:</b> <span class="tag">Casa ${pct(a.dnb1)}</span><span class="tag">Ospite ${pct(a.dnb2)}</span></div>
-    <div class="small">${esc(a.method||'')}</div>
-    ${a.note?`<div class="notice">${esc(a.note)}</div>`:''}
-    ${a.explain?.length?`<div class="notice"><b>Perché il modello dice questo</b><br>${a.explain.map(v=>'• '+esc(v)).join('<br>')}</div>`:''}
-    <button class="detailbtn" onclick="loadDetails(${g.id},this)">Quote • Assenti • Formazioni • VALUE</button><div class="details" id="details-${g.id}" style="display:none"></div>
-   </div>`);
- }
+function showPayload(j){current=j;setDates();renderMatches();const m=j.meta;$('#status').textContent=`${j.matches.length} partite · xG ${m.xgAvailable??0}/${m.xgChecked??0} gare storiche${m.statisticsDeferred?' · Recupero automatico: '+(m.domesticPending?m.domesticPending+' squadre con campionato da caricare; ':'')+m.statisticsPending+' gare con statistiche da completare.':''} · Statistiche complete ${m.productionAvailable??0}/${m.xgChecked??0}${m.statisticsUnavailable?' · '+m.statisticsUnavailable+' gare con dati non forniti dal provider (ricontrollo fra 24 ore).':''} · ${m.persistentArchive?'Archivio persistente':'Archivio non disponibile'}${m.totalTeams!=null?' · Campionati identificati: '+m.domesticTeams+'/'+m.totalTeams+' squadre':''} · ${m.leagueName} · stagione ${m.season} · stima ${fmt(m.generatedAt)}. Dati scaricati da API-Football (lettura più vecchia): ${fmt(m.sourceUpdatedAt)}. Richieste effettive in questo passaggio: ${m.upstreamCalls??0}; risposte in cache: ${m.cacheHits??0}.${m.requestsRemaining!=null?' Quota residua osservata: '+m.requestsRemaining+'.':''}`;}
+function setDates(){const prev=$('#date').value,ds=[...new Set((current?.matches||[]).map(g=>dateRome(g.date)))].sort();$('#date').innerHTML='<option value="">Tutti i prossimi 14 giorni</option>'+ds.map(d=>`<option value="${esc(d)}">${esc(d.split('-').reverse().join('/'))}</option>`).join('');if(ds.includes(prev))$('#date').value=prev;}
+function metric(label,a,b){return `<div class="metric"><b>${esc(label)}</b>${num(a)} <span class="muted">/</span> ${num(b)}</div>`;}
+function logo(url){try{const u=new URL(url);return u.protocol==='https:'?`<img src="${esc(u.href)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:'';}catch{return '';}}
+function renderMatches(){
+  const box=$('#matches');box.innerHTML='';if(!current)return;
+  const q=$('#search').value.trim().toLocaleLowerCase('it'),date=$('#date').value;
+  const rows=current.matches.filter(g=>(g.home.name+' '+g.away.name).toLocaleLowerCase('it').includes(q)&&(!date||dateRome(g.date)===date));
+  if(!rows.length){box.innerHTML='<div class="filter-empty">'+(current.matches.length?'Nessuna partita corrisponde ai filtri.':'Nessuna partita non iniziata nei prossimi 14 giorni.')+'</div>';return;}
+  for(const g of rows){
+    const a=g.analysis||{},expired=Date.parse(g.date)<=Date.now(),id=Number(g.id);if(!Number.isSafeInteger(id))continue;modelByFixture.set(String(id),g);
+    const valid=validProbs(a)&&!a.insufficient,mx=valid?Math.max(a.p1,a.px,a.p2):null;
+    const header=`<div class="small">${esc(fmt(g.date))} · ora italiana</div><div class="teams"><div class="team">${logo(g.home.logo)}<span>${esc(g.home.name)}</span></div><span class="muted">–</span><div class="team"><span>${esc(g.away.name)}</span>${logo(g.away.logo)}</div></div>`;
+    const warnings=(currentStale?'<p class="warning small">Copia precedente: aggiornamento non verificato.</p>':'')+(expired?'<p class="warning small">Orario di inizio superato: questa è una previsione prepartita, non live.</p>':'');
+    let body=valid?`<div class="grid">${[['1',a.p1],['X',a.px],['2',a.p2]].map(([k,p])=>`<div class="prob ${p===mx?'best':''}"><span>${k}</span><strong>${pct(p)}</strong></div>`).join('')}</div><span class="badge">Qualità dati: ${esc(a.confidence||'non disponibile')}</span><span class="badge">Preliminare · non validato</span><p class="notice">${esc(a.reading||'')}</p><div class="metrics">${metric('xG creati · media recente ponderata',a.xg?.home?.for,a.xg?.away?.for)}${metric('xG concessi · media recente ponderata',a.xg?.home?.against,a.xg?.away?.against)}</div><p class="small">Copertura xG: ${esc(g.home.name)} ${a.xg?.home?.matches??0}/${a.xg?.home?.considered??0} gare · ${esc(g.away.name)} ${a.xg?.away?.matches??0}/${a.xg?.away?.considered??0} gare. ${a.xg?.applied?'Usati nella stima.':'Campione insufficiente: non usati nella stima.'}</p><div class="metrics">${metric('Gol attesi dal modello · casa / ospite',a.lh,a.la)}<div class="metric"><b>Gol / entrambe segnano</b>Over 2,5: ${pct(a.over)} · Goal: ${pct(a.btts)}</div></div>${renderSources(a.domestic,g,a.sourceStatus)}${renderComparison(a.leagueComparison)}${renderProduction(a.production,g)}<details><summary>Analisi completa e motivi</summary><p class="small">Tutti i confronti: squadra di casa / squadra ospite.</p><h3>Dati osservati, stagione corrente</h3><div class="metrics">${metric('Gol fatti per gara',a.observed?.home?.gfPerMatch,a.observed?.away?.gfPerMatch)}${metric('Gol subiti per gara',a.observed?.home?.gaPerMatch,a.observed?.away?.gaPerMatch)}${metric('Gol fatti in casa / trasferta',a.observed?.home?.venueGF,a.observed?.away?.venueGF)}${metric('Gol subiti in casa / trasferta',a.observed?.home?.venueGA,a.observed?.away?.venueGA)}${metric('Punti per gara',a.observed?.home?.ppg,a.observed?.away?.ppg)}${metric('Partite osservate',a.observed?.home?.matches,a.observed?.away?.matches)}</div><h3>Indicatori del modello</h3><div class="metrics">${metric(a.domestic?'Elo nei rispettivi campionati · scale non confrontabili':'Elo domestico',a.homeElo,a.awayElo)}${metric('Forza strutturale · 1 = riferimento',a.homeStructural,a.awayStructural)}${metric('Forma residua · 0 = attesa Elo',a.homeForm,a.awayForm)}</div><p class="small">${esc(a.method||'')}</p><ul class="explain">${(a.explain||[]).map(t=>'<li>'+esc(t)+'</li>').join('')}</ul><p class="small">${esc(a.note||'')}</p><h3>Altri esiti sui 90 minuti</h3>${[['Over 1,5',a.over15],['Under 1,5',a.under15],['Over 2,5',a.over],['Under 2,5',a.under],['Over 3,5',a.over35],['Under 3,5',a.under35],['Goal',a.btts],['No Goal',a.noBtts],['1X',a.dc1x],['12',a.dc12],['X2',a.dcx2]].map(([k,p])=>`<span class="tag">${k} ${pct(p)}</span>`).join('')}<p class="small">Draw No Bet, probabilità condizionate all’assenza di pareggio: casa ${pct(a.dnb1)}, ospite ${pct(a.dnb2)}. In caso di pareggio la puntata è rimborsata.</p><p class="small">Risultati esatti più probabili: ${(a.scores||[]).map(s=>esc(s.score)+' '+pct(s.p)).join(' · ')}</p>${a.h2h?`<p class="small">H2H nel solo campione già caricato: ${a.h2h.n}; vittorie casa / pareggi / ospite: ${a.h2h.homeWins} / ${a.h2h.draws} / ${a.h2h.awayWins}. Solo descrittivi. Apri «Contesto, motivazioni e scontri diretti» per la ricerca storica completa.</p>`:''}</details>`:`<div class="notice warning">${esc(a.reason||'Dati insufficienti o probabilità non valide. Nessuna stima mostrata.')}</div>${renderSources(a.domestic,g,a.sourceStatus)}${renderComparison(a.leagueComparison)}${renderProduction(a.production,g)}`;
+    box.insertAdjacentHTML('beforeend',`<article class="match">${header}${warnings}${body}<button class="detailbtn" data-fixture="${id}" aria-expanded="false" aria-controls="details-${id}">Contesto, motivazioni e scontri diretti</button><div id="details-${id}" class="panel" hidden></div></article>`);
+  }
 }
-
 async function loadDetails(id,btn){
- const panel=document.querySelector('#details-'+id);
- if(panel.style.display==='block'){panel.style.display='none';return}
- panel.style.display='block';
- const cached=cacheRead(keyDetail(id),DETAIL_TTL);if(cached){renderDetails(panel,cached,true);return}
- panel.innerHTML='<span class="muted">Caricamento dettagli…</span>';btn.disabled=true;
- try{
-   const r=await fetch('/api/details?fixture='+encodeURIComponent(id));
-   const j=await r.json();
-   if(!r.ok||!j.ok){panel.innerHTML='<b>Dettagli non disponibili</b><br><span class="muted">'+esc(j.message||'')+'</span>';return}
-   cacheWrite(keyDetail(id),j);renderDetails(panel,j,false);
- }catch(x){panel.innerHTML='<b>Errore</b><br><span class="muted">'+esc(x.message)+'</span>'}
- finally{btn.disabled=false}
+  const panel=$('#details-'+id);if(!panel.hidden){panel.hidden=true;btn.setAttribute('aria-expanded','false');return;}
+  panel.hidden=false;btn.setAttribute('aria-expanded','true');btn.disabled=true;panel.textContent='Caricamento dettagli…';
+  try{let j=detailCache.get(id);if(!j||Date.now()-j.loadedAt>60000){j=await requestJSON('/api/details?fixture='+id,null,n=>{panel.textContent='Preparazione dettagli, passaggio '+n+'/20…';});j.loadedAt=Date.now();if(!(j.warnings||[]).length)detailCache.set(id,j);}renderDetails(panel,j,modelByFixture.get(id));}
+  catch(e){panel.textContent=e.message;}
+  finally{btn.disabled=false;}
 }
-
-function renderDetails(panel,j,cache){
- const o=j.odds||{},inj=j.injuries||[],lu=j.lineups||[];
- let oddsHtml='<span class="muted">Quote 1X2 non disponibili.</span>';
- if(o.home||o.draw||o.away)oddsHtml=`<div class="oddsgrid"><div class="odd"><b>1</b><br>${esc(o.home||'—')}</div><div class="odd"><b>X</b><br>${esc(o.draw||'—')}</div><div class="odd"><b>2</b><br>${esc(o.away||'—')}</div></div><div class="muted">${esc(o.bookmaker||'Bookmaker')} ${o.updated?'• '+esc(o.updated):''}</div>`;
- const injuriesHtml=inj.length?inj.slice(0,20).map(x=>`<div class="playerline">${esc(x.team)} — <b>${esc(x.player)}</b> <span class="muted">${esc(x.reason||'assente/dubbio')}</span></div>`).join(''):'<span class="muted">Nessuna informazione su assenti/infortunati disponibile.</span>';
- const lineupsHtml=lu.length?lu.map(t=>`<div class="section"><b>${esc(t.team)} ${t.formation?'('+esc(t.formation)+')':''}</b>${(t.startXI||[]).slice(0,11).map(p=>`<div class="playerline">${esc(p)}</div>`).join('')}</div>`).join(''):'<span class="muted">Formazioni ufficiali non ancora disponibili.</span>';
- const m=modelByFixture[j.fixture];let valueHtml='<span class="muted">VALUE non calcolabile.</span>';
- if(m&&!m.insufficient&&o.home&&o.draw&&o.away){
-   const odds=[+o.home,+o.draw,+o.away],probs=[m.p1,m.px,m.p2];
-   if(odds.every(x=>x>1)&&probs.every(x=>x>0)){
-     const raw=odds.map(x=>1/x),sum=raw.reduce((a,b)=>a+b,0),market=raw.map(x=>x/sum),labels=['1','X','2'];
-     valueHtml='<div class="valuebox">'+labels.map((lab,i)=>{
-       const edge=(probs[i]-market[i])*100,ev=(probs[i]*odds[i]-1)*100;
-       return `<div class="valuerow ${ev>=5?'positive':''}"><div><b>${lab}</b></div><div>Mod. ${(probs[i]*100).toFixed(1)}%</div><div>Merc. ${(market[i]*100).toFixed(1)}%</div><div>EV ${ev>=0?'+':''}${ev.toFixed(1)}%</div></div>`;
-     }).join('')+'</div><div class="warning">VALUE = confronto probabilistico, non esito certo né consiglio di puntata.</div>';
-   }
- }
- panel.innerHTML=`<div class="muted">${cache?'Dati dalla cache locale':'Dati aggiornati'} • ${j.apiCalls??'—'} chiamate API${j.requestsRemaining!=null?' • '+j.requestsRemaining+' rimaste':''}</div>
- <div class="section"><b>Quote bookmaker</b>${oddsHtml}</div>
- <div class="section"><b>Confronto modello ↔ mercato</b>${valueHtml}</div>
- <div class="section"><b>Assenti / infortuni</b>${injuriesHtml}</div>
- <div class="section"><b>Formazioni ufficiali</b>${lineupsHtml}</div>`;
+function renderSources(d,f,status){if(!d)return '';return '<p class="notice">Base domestica · '+esc(f.home.name)+': '+esc(d.home?d.home.name+' '+d.home.season:(status?.home==='unavailable'?'non identificato dal provider':'caricamento in corso'))+' · '+esc(f.away.name)+': '+esc(d.away?d.away.name+' '+d.away.season:(status?.away==='unavailable'?'non identificato dal provider':'caricamento in corso'))+'. xG, tiri e corner di seguito si riferiscono a questi campionati.</p>';}
+function renderProduction(p,f){
+  if(!p)return '';
+  const labels={shots:'Tiri totali',onTarget:'Tiri in porta',corners:'Corner'};
+  const cell=(side,key)=>{const m=side?.metrics?.[key],n=m?.matches??0,total=side?.considered??0;return n?`${num(m.for,1)} / ${num(m.against,1)}<br><span class=\"small\">${n}/${total} gare con dati</span>`:`—<br><span class=\"small\">0/${total} gare con dati</span>`;};
+  const table=(title,h,a)=>`<h3>${title}</h3><div class=\"tablewrap\"><table><thead><tr><th>Media per gara<br>Fatti / concessi</th><th>${esc(f.home.name)}</th><th>${esc(f.away.name)}</th></tr></thead><tbody>${Object.entries(labels).map(([key,label])=>`<tr><th>${label}</th><td>${cell(h,key)}</td><td>${cell(a,key)}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<details class=\"production\"><summary>Tiri, tiri in porta e corner</summary><p class=\"small\">Dati osservati da API-Football. Medie semplici delle ultime 8 gare disponibili della stagione corrente, o meno se non ancora disputate. Ogni riga usa solo gare con il dato valido per entrambe le squadre; i valori mancanti sono esclusi, gli zeri sono conteggiati.</p>${table('Ultime gare · tutte le sedi',p.home?.overall,p.away?.overall)}${table('Solo gare del campione sopra: in casa per '+esc(f.home.name)+' · trasferta per '+esc(f.away.name),p.home?.venue,p.away?.venue)}<p class=\"small\">Sono medie storiche, non statistiche previste. Non modificano le probabilità del modello.</p></details>`;
 }
-
-document.querySelector('#league').addEventListener('change',()=>load(false));
-load(false);
-</script>
-</main></body></html>
+function renderComparison(c){
+  if(!c||c.sameLeague)return '';
+  return `<p class="notice">Confronto fra campionati: riferimento storico ${esc(c.year)}, ${esc(c.homeCountry)} n. ${esc(c.homeRank)} / ${esc(c.awayCountry)} n. ${esc(c.awayRank)}. <a href="https://kassiesa.net/uefa/data/method5/crank2025.html" target="_blank" rel="noopener noreferrer">Fonte della classifica 2025</a>. Non è il ranking attuale né un rating dei club. Il peso applicato è una scelta euristica del modello, da validare.</p>`;
+}
+function renderDetails(panel,j){
+  const c=j.context,st=c?.standings;
+  const team=(row,name)=>row?`<h3>${esc(name)}</h3><p class="small">Posizione ${esc(row.rank)} · ${esc(row.points)} punti · ${esc(row.played)} gare${row.group?' · '+esc(row.group):''}. ${row.gapToLeader!==null?'Distanza dalla capolista: '+esc(row.gapToLeader)+' punti.':''}${row.leaderPlayed!==null&&row.played!==row.leaderPlayed?' Numero di gare diverso dalla capolista: confronto provvisorio.':''}</p>${row.zone?'<p class="small">Zona indicata dal provider: '+esc(row.zone)+'. Non certifica una qualificazione o retrocessione matematica.</p>':''}${row.interpretation?'<p class="notice">Lettura possibile: '+esc(row.interpretation)+'</p>':''}<p class="small">Aggiornamento classifica dichiarato dal provider: ${esc(fmt(row.updatedAt))}.</p>`:`<p class="small">${esc(name)}: classifica non disponibile o ambigua.</p>`;
+  const h=j.h2h;
+  panel.innerHTML=`<h3>Contesto e motivazioni verificabili</h3><p class="small">Fonte: API-Football · lettura ${esc(fmt(j.generatedAt))}. Fase: ${esc(c?.round||'non disponibile')}. ${st?esc(st.competition)+' · stagione '+esc(st.season):''}</p><p class="notice">Classifica e fase del torneo sono fatti osservabili. La motivazione psicologica non è misurata: le letture qui sotto sono ipotesi, non notizie confermate. Questo contesto e gli H2H non modificano le percentuali. Assenze e formazioni non integrate.</p>${team(st?.home,j.home?.name)}${team(st?.away,j.away?.name)}<h3>Scontri diretti recenti</h3>${h?`<p class="small">${esc(h.scope)}</p><p class="small">${h.n} gare · vittorie ${esc(j.home?.name)}: ${h.homeWins} · pareggi: ${h.draws} · vittorie ${esc(j.away?.name)}: ${h.awayWins}.</p>${h.n?`<div class="tablewrap"><table><thead><tr><th>Data</th><th>Competizione</th><th>Casa</th><th>90 minuti</th><th>Ospite</th></tr></thead><tbody>${h.matches.map(m=>`<tr><td>${esc(fmt(m.date))}</td><td>${esc(m.competition)}</td><td>${esc(m.home)}</td><td>${esc(m.score.home)}–${esc(m.score.away)}</td><td>${esc(m.away)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="small">Nessun precedente ufficiale restituito dal provider nel periodo richiesto.</p>'}`:'<p class="small">Ricerca storica non disponibile: non equivale a zero precedenti.</p>'}${(j.warnings||[]).length?'<p class="warning small">'+j.warnings.map(esc).join('<br>')+'</p>':''}`;
+}
+function historyMetrics(rows){
+  const done=rows.filter(r=>!r.excluded&&r.result&&Number.isInteger(r.result.home)&&Number.isInteger(r.result.away)&&r.result.home>=0&&r.result.away>=0&&validProbs(r.probs));
+  if(!done.length)return null;
+  let brier=0,loss=0,hits=0;const bins=Array.from({length:10},()=>({n:0,p:0,y:0}));
+  for(const r of done){const p=[r.probs.p1,r.probs.px,r.probs.p2],y=r.result.home>r.result.away?0:r.result.home===r.result.away?1:2,max=Math.max(...p),best=p.indexOf(max);if(best===y)hits++;loss-=Math.log(Math.max(1e-15,p[y]));p.forEach((v,i)=>{brier+=(v-(i===y?1:0))**2;const bin=bins[Math.min(9,Math.floor(v*10))];bin.n++;bin.p+=v;bin.y+=i===y?1:0;});}
+  return {n:done.length,brier:brier/done.length,loss:loss/done.length,hits:hits/done.length,bins};
+}
+function renderHistory(){
+  const versions=[...new Set(history.map(r=>r.version))];
+  let html=`<p class="small">${history.length} pronostici registrati · ${history.filter(r=>r.excluded).length} esclusi per rinvio/cambio data o stato.</p>`;
+  for(const v of versions){const m=historyMetrics(history.filter(r=>r.version===v));if(!m)continue;html+=`<h3>Versione ${esc(v)} · ${m.n} partite concluse</h3><div class="metrics"><div class="metric"><b>Brier 1X2 · scala 0–2, più basso è meglio</b>${num(m.brier,3)}</div><div class="metric"><b>Log loss · più bassa è meglio</b>${num(m.loss,3)}</div><div class="metric"><b>Esito più probabile indovinato</b>${pct(m.hits)}</div><div class="metric"><b>Riferimento uniforme 33,3% · Brier / log loss</b>0,667 / 1,099</div></div><p class="small">Campione personale, non un test indipendente. Le partite vengono registrate quando apri la pagina; orizzonti previsionali diversi non sono direttamente confrontabili.</p><details><summary>Calibrazione per fasce (esiti 1, X e 2 aggregati)</summary><div class="tablewrap"><table><tr><th>Fascia</th><th>Eventi</th><th>Probabilità media</th><th>Frequenza reale</th></tr>${m.bins.map((b,i)=>b.n?`<tr><td>${i*10}–${(i+1)*10}%</td><td>${b.n}</td><td>${pct(b.p/b.n)}</td><td>${pct(b.y/b.n)}</td></tr>`:'').join('')}</table></div><p class="small">Tre eventi correlati per partita. Fasce poco popolate non consentono conclusioni affidabili.</p></details>`;}
+  if(!versions.some(v=>historyMetrics(history.filter(r=>r.version===v))))html+='<p class="small">Servono pronostici registrati e risultati verificati per mostrare le misure.</p>';
+  $('#history-summary').innerHTML=html;
+  $('#history-table').innerHTML='<table><thead><tr><th>Partita</th><th>Inizio</th><th>Registrato</th><th>1 / X / 2</th><th>Esito</th></tr></thead><tbody>'+[...history].reverse().slice(0,100).map(r=>`<tr><td>${esc(r.home)} – ${esc(r.away)}<br><span class="small">${esc(r.version)}</span></td><td>${esc(fmt(r.kickoff))}</td><td>${esc(fmt(r.savedAt))}</td><td>${pct(r.probs.p1)} / ${pct(r.probs.px)} / ${pct(r.probs.p2)}</td><td>${r.excluded?esc(r.excluded):r.result?esc(r.result.home+'–'+r.result.away):'Da verificare'}</td></tr>`).join('')+'</tbody></table><p class="small">Mostrati gli ultimi 100; l’esportazione contiene tutti i record.</p>';
+}
+async function checkResults(){
+  const button=$('#check-results'),st=$('#history-status');const ids=[...new Set(history.filter(r=>!r.result&&!r.excluded&&Date.parse(r.kickoff)<Date.now()-2*3600000).sort((a,b)=>(Date.parse(a.lastCheckedAt)||0)-(Date.parse(b.lastCheckedAt)||0)).map(r=>r.id))].slice(0,20);
+  if(!ids.length){st.textContent='Nessun risultato da verificare. La verifica si attiva due ore dopo l’orario previsto.';return;}
+  button.disabled=true;st.textContent='Verifica di '+ids.length+' partite…';
+  try{const j=await requestJSON('/api/results?ids='+ids.join(','),null,n=>{st.textContent='Preparazione risultati, passaggio '+n+'/20…';});
+    for(const r of history)if(ids.includes(r.id))r.lastCheckedAt=j.meta.generatedAt;
+    for(const f of j.results)for(const r of history.filter(r=>r.id===f.id&&!r.result&&!r.excluded)){
+      if(Date.parse(f.date)!==Date.parse(r.kickoff)){r.excluded='Data modificata';continue;}
+      if(['CANC','PST','ABD','AWD','WO'].includes(f.status)){r.excluded='Stato '+f.status;continue;}
+      if(['FT','AET','PEN'].includes(f.status)&&f.score&&Number.isInteger(f.score.home)&&Number.isInteger(f.score.away)&&f.score.home>=0&&f.score.away>=0){r.result=f.score;r.verifiedAt=j.meta.generatedAt;}
+    }saveHistory();st.textContent='Verifica completata. Per più di 20 partite, premi di nuovo Verifica risultati.';
+  }catch(e){st.textContent=e.message;}finally{button.disabled=false;}
+}
+function exportHistory(){const blob=new Blob([JSON.stringify({format:'calcioai-history',schema:1,exportedAt:new Date().toISOString(),records:history},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='calcio-ai-storico-'+dateRome(new Date())+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+async function importHistory(event){const file=event.target.files[0];if(!file)return;try{if(file.size>5e6)throw new Error('File troppo grande.');const j=JSON.parse(await file.text());if(j.format!=='calcioai-history'||j.schema!==1||!Array.isArray(j.records)||!j.records.every(r=>validRecord(r)&&['1.5.0-af','1.6.0-af-ucl','1.7.0-af','1.7.0-af-ucl'].includes(r.version))||j.records.length>2000)throw new Error('Importa soltanto uno storico Calcio AI API-Football (versioni 1.5, 1.6 o 1.7). Lo storico 1.4 usa ID diversi e resta separato.');let added=0;for(const r of j.records){if(history.length>=2000)break;if(!history.some(x=>x.id===r.id&&x.version===r.version)){history.push(cleanRecord(r));added++;}}saveHistory();$('#history-status').textContent=added+' pronostici importati. I risultati importati sono ignorati: verificali nuovamente con il provider.';}catch(e){$('#history-status').textContent=e.message;}finally{event.target.value='';}}
+$('#refresh').addEventListener('click',()=>load(true));$('#league').addEventListener('change',()=>{recoveryTries=0;load();});$('#cancel').addEventListener('click',()=>{clearTimeout(recoveryTimer);active?.abort();});$('#search').addEventListener('input',renderMatches);$('#date').addEventListener('change',renderMatches);$('#matches').addEventListener('click',e=>{const btn=e.target.closest('button[data-fixture]');if(btn)loadDetails(btn.dataset.fixture,btn);});$('#check-results').addEventListener('click',checkResults);$('#export-history').addEventListener('click',exportHistory);$('#import-history').addEventListener('change',importHistory);
+readHistory();renderHistory();load();
+</script></body></html>
