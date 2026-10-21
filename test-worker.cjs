@@ -119,3 +119,32 @@ test('Champions recovery keeps 7–23 hour calendars across alternating passes, 
   }
  }
 });
+test('details reuse a fresh validated calendar and mark partial transient errors for retry',async()=>{
+ const values=new Map([
+  ['api:/leagues?id=2&current=true',{expiresAt:TEST_NOW+1000,data:{response:[{league:{id:2},seasons:[{current:true,year:2026}]}]}}],
+  ['api:/fixtures?league=2&season=2026',{expiresAt:TEST_NOW+1000,fetchedAt:new Date(TEST_NOW-1000).toISOString(),data:{response:[f]}}]
+ ]);
+ const paths=[],client={storage:{get:async k=>values.get(k)},stats:{cacheHits:0},get:async path=>{paths.push(path);if(path.startsWith('/standings?'))return standingPayload();if(path.startsWith('/fixtures?id='))return {response:[f]};throw Object.assign(new Error('quota'),{code:'QUOTA'});}};
+ let d=await app.details(client,f.fixture.id);
+ assert.equal(paths.some(p=>p.startsWith('/fixtures?id=')),false);assert.equal(client.stats.cacheHits,1);
+ assert.equal(d.retryable,true);assert.equal(d.retryAfterSeconds,65);assert.ok(d.context.standings);assert.equal(d.h2h,null);
+ values.get('api:/fixtures?league=2&season=2026').expiresAt=TEST_NOW-1;paths.length=0;
+ await app.details(client,f.fixture.id);assert.equal(paths[0],'/fixtures?id='+f.fixture.id);
+ client.get=async path=>{if(path.startsWith('/fixtures?id='))return {response:[f]};throw Object.assign(new Error('plan'),{code:'PLAN'});};
+ d=await app.details(client,f.fixture.id);assert.equal(d.retryable,false);
+});
+test('detail UI retries partial responses, keeps results visible, stops after 4 attempts and supports closing',async()=>{
+ const js=app.INDEX_HTML.match(/<script>([\s\S]*?)<\/script>/)[1];
+ const panel={hidden:true,isConnected:true,children:[],appendChild(n){if(!this.children.includes(n))this.children.push(n);},set innerHTML(v){this.html=v;this.children=[];}};
+ const document={querySelector:()=>panel,createElement:()=>({setAttribute(){},addEventListener(){},remove(){}})};
+ const ctx=vm.createContext({document,Intl,Date,URL,console,AbortController,DOMException});
+ vm.runInContext(js.slice(0,js.indexOf("$('#refresh').addEventListener"))+`;globalThis.run=loadDetails;globalThis.configure=(request,wait)=>{requestJSON=request;delay=wait;detailCache.clear();};`,ctx);
+ const btn={setAttribute(){}};let calls=0,waits=0;
+ const partial={context:{round:'Group'},home:{name:'A'},away:{name:'B'},h2h:null,warnings:['quota'],retryable:true};
+ ctx.configure(async()=>{calls++;return {...partial,retryable:calls<2,warnings:calls<2?['quota']:[]};},async()=>{waits++;assert.match(panel.html,/Group/);});
+ await ctx.run('1',btn);assert.equal(calls,2);assert.equal(waits,65);
+ panel.hidden=true;calls=0;ctx.configure(async()=>{calls++;return {...partial};},async()=>{});
+ await ctx.run('1',btn);assert.equal(calls,4);assert.ok(panel.children.some(x=>x.textContent==='Riprova dettagli'));
+ panel.hidden=true;calls=0;ctx.configure(async()=>{calls++;return {...partial};},async(ms,signal)=>{await ctx.run('1',btn);if(signal.aborted)throw new DOMException('aborted','AbortError');});
+ await ctx.run('1',btn);assert.equal(calls,1);assert.equal(panel.hidden,true);
+});

@@ -27,7 +27,7 @@ const fmt=x=>Number.isFinite(Date.parse(x))?new Date(x).toLocaleString('it-IT',{
 const dateRome=x=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(x));
 const validProbs=a=>a&&[a.p1,a.px,a.p2].every(p=>typeof p==='number'&&Number.isFinite(p)&&p>=0&&p<=1)&&Math.abs(a.p1+a.px+a.p2-1)<1e-6;
 let recoveryTimer=null,recoveryTries=0,active=null,loadSeq=0,current=null,currentStale=false,history=[],storageOK=true;
-const modelByFixture=new Map(),detailCache=new Map();
+const modelByFixture=new Map(),detailCache=new Map(),detailLoads=new Map();
 function readStore(key){try{return JSON.parse(localStorage.getItem(key)||'null');}catch{return null;}}
 function writeStore(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{storageOK=false;$('#storage-warning').textContent='Salvataggio locale non disponibile o spazio esaurito. Esporta lo storico per conservarlo.';return false;}}
 function validRecord(r){return r&&Number.isSafeInteger(r.id)&&r.id>0&&typeof r.version==='string'&&r.version.length<30&&typeof r.home==='string'&&typeof r.away==='string'&&r.home.length<150&&r.away.length<150&&Number.isFinite(Date.parse(r.kickoff))&&Number.isFinite(Date.parse(r.savedAt))&&Number.isFinite(Date.parse(r.generatedAt))&&Date.parse(r.generatedAt)<=Date.parse(r.savedAt)&&Date.parse(r.savedAt)<Date.parse(r.kickoff)&&validProbs(r.probs);}
@@ -48,7 +48,7 @@ function capture(j){
 }
 function abortError(){return new DOMException('Operazione interrotta','AbortError');}
 function delay(ms,signal){return new Promise((resolve,reject)=>{if(signal?.aborted)return reject(abortError());const onAbort=()=>{clearTimeout(t);reject(abortError());};const t=setTimeout(()=>{signal?.removeEventListener('abort',onAbort);resolve();},ms);signal?.addEventListener('abort',onAbort,{once:true});});}
-async function requestJSON(url,signal,onProgress){
+async function requestJSON(url,signal,onProgress,maxQuotaRetries=3){
   let quotaRetries=0;
   for(let attempt=1;attempt<=20;attempt++){
     if(signal?.aborted)throw abortError();
@@ -58,8 +58,8 @@ async function requestJSON(url,signal,onProgress){
     catch(e){if(signal?.aborted)throw abortError();throw new Error(e.name==='AbortError'?'Tempo di attesa scaduto. Riprova: i dati già preparati restano in cache.':'Impossibile leggere la risposta del server. Riprova.');}
     finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
     if(res.status===202&&j.code==='PREPARING'){onProgress?.(attempt,j.meta);await delay(2000,signal);continue;}
-    if(res.status===429&&j.code==='QUOTA'&&quotaRetries<3){quotaRetries++;for(let left=65;left>0;left--){onProgress?.(attempt,{...j.meta,retrySeconds:left});await delay(1000,signal);}continue;}
-    if(!res.ok||!j.ok)throw new Error(j.message||'Dati non disponibili.');
+    if(res.status===429&&j.code==='QUOTA'&&quotaRetries<maxQuotaRetries){quotaRetries++;for(let left=65;left>0;left--){onProgress?.(attempt,{...j.meta,retrySeconds:left});await delay(1000,signal);}continue;}
+    if(!res.ok||!j.ok)throw Object.assign(new Error(j.message||'Dati non disponibili.'),{code:j.code});
     return j;
   }
   throw new Error('Preparazione ancora incompleta dopo 20 passaggi. Premi Aggiorna per riprendere.');
@@ -88,6 +88,7 @@ function setDates(){const prev=$('#date').value,ds=[...new Set((current?.matches
 function metric(label,a,b){return `<div class="metric"><b>${esc(label)}</b>${num(a)} <span class="muted">/</span> ${num(b)}</div>`;}
 function logo(url){try{const u=new URL(url);return u.protocol==='https:'?`<img src="${esc(u.href)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:'';}catch{return '';}}
 function renderMatches(){
+  for(const ctl of detailLoads.values())ctl.abort();detailLoads.clear();
   const box=$('#matches');box.innerHTML='';if(!current)return;
   const q=$('#search').value.trim().toLocaleLowerCase('it'),date=$('#date').value;
   const rows=current.matches.filter(g=>(g.home.name+' '+g.away.name).toLocaleLowerCase('it').includes(q)&&(!date||dateRome(g.date)===date));
@@ -102,11 +103,28 @@ function renderMatches(){
   }
 }
 async function loadDetails(id,btn){
-  const panel=$('#details-'+id);if(!panel.hidden){panel.hidden=true;btn.setAttribute('aria-expanded','false');return;}
-  panel.hidden=false;btn.setAttribute('aria-expanded','true');btn.disabled=true;panel.textContent='Caricamento dettagli…';
-  try{let j=detailCache.get(id);if(!j||Date.now()-j.loadedAt>60000){j=await requestJSON('/api/details?fixture='+id,null,n=>{panel.textContent='Preparazione dettagli, passaggio '+n+'/20…';});j.loadedAt=Date.now();if(!(j.warnings||[]).length)detailCache.set(id,j);}renderDetails(panel,j,modelByFixture.get(id));}
-  catch(e){panel.textContent=e.message;}
-  finally{btn.disabled=false;}
+  const panel=$('#details-'+id);
+  if(!panel.hidden){detailLoads.get(id)?.abort();detailLoads.delete(id);panel.hidden=true;btn.setAttribute('aria-expanded','false');return;}
+  const ctl=new AbortController();detailLoads.set(id,ctl);
+  panel.hidden=false;btn.setAttribute('aria-expanded','true');panel.textContent='Caricamento dettagli…';
+  const status=document.createElement('p');status.className='small warning';status.setAttribute('role','status');panel.appendChild(status);
+  const retryButton=()=>{const retry=document.createElement('button');retry.textContent='Riprova dettagli';retry.addEventListener('click',()=>{panel.hidden=true;loadDetails(id,btn);});panel.appendChild(retry);};
+  try{
+    for(let attempt=0;attempt<4;attempt++){
+      let retry=false;
+      try{
+        let j=detailCache.get(id);
+        if(!j||Date.now()-j.loadedAt>60000){j=await requestJSON('/api/details?fixture='+id,ctl.signal,(n,m)=>{status.textContent=m?.retrySeconds?'Pausa API: riprovo tra '+m.retrySeconds+' secondi.':'Preparazione dettagli…';},0);j.loadedAt=Date.now();if(!j.retryable&&!(j.warnings||[]).length)detailCache.set(id,j);}
+        if(ctl.signal.aborted||!panel.isConnected)return;
+        renderDetails(panel,j);panel.appendChild(status);retry=!!j.retryable;
+      }catch(e){if(e.name==='AbortError')throw e;retry=['QUOTA','PREPARING','NETWORK'].includes(e.code);status.textContent=e.message;if(!retry){retryButton();return;}}
+      if(!retry){status.remove();return;}
+      if(attempt===3){status.textContent='Il provider è ancora temporaneamente indisponibile. I dati già caricati restano visibili; puoi riprovare più tardi.';retryButton();return;}
+      for(let left=65;left>0;left--){status.textContent='Pausa API-Football: nuovo tentativo tra '+left+' secondi. Puoi chiudere questo pannello per interrompere.';await delay(1000,ctl.signal);}
+      status.textContent='Ripresa del caricamento…';
+    }
+  }catch(e){if(e.name!=='AbortError'){status.textContent=e.message;retryButton();}}
+  finally{if(detailLoads.get(id)===ctl)detailLoads.delete(id);}
 }
 function renderSources(d,f,status){if(!d)return '';return '<p class="notice">Base domestica · '+esc(f.home.name)+': '+esc(d.home?d.home.name+' '+d.home.season:(status?.home==='unavailable'?'non identificato dal provider':'caricamento in corso'))+' · '+esc(f.away.name)+': '+esc(d.away?d.away.name+' '+d.away.season:(status?.away==='unavailable'?'non identificato dal provider':'caricamento in corso'))+'. xG, tiri e corner di seguito si riferiscono a questi campionati.</p>';}
 function renderProduction(p,f){
