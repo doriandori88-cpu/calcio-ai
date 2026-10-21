@@ -75,7 +75,7 @@ async function load(force=false){
   if(usable){current=saved;currentStale=true;setDates();renderMatches();}
   $('#status').textContent=usable?'Controllo aggiornamenti… Mostro intanto l’ultima copia salvata.':'Preparazione dei dati… Il primo caricamento può richiedere più passaggi.';
   try{
-    if(!force&&usable&&saved.meta.dataRevision==='archive-context-2'&&!saved.meta.statisticsDeferred&&Date.now()-Date.parse(saved.meta.generatedAt)<60000){currentStale=false;showPayload(saved);return;}
+    if(!force&&usable&&saved.meta.dataRevision==='archive-context-3'&&!saved.meta.statisticsDeferred&&Date.now()-Date.parse(saved.meta.generatedAt)<60000){currentStale=false;showPayload(saved);return;}
     const j=await requestJSON('/api/analyze?league='+encodeURIComponent(league),ctl.signal,(n,m)=>{if(seq!==loadSeq)return;$('#status').textContent=m?.retrySeconds?`Pausa richiesta da API-Football: ripresa automatica tra ${m.retrySeconds} secondi. I dati già scaricati restano conservati.`:`Preparazione, passaggio ${n}/20 · ${m?.cacheHits??0} risposte recuperate dalla cache in questo passaggio. Puoi interrompere o cambiare campionato.`;});
     if(seq!==loadSeq)return;
     if(!validPayload(j))throw new Error('Formato del pronostico non valido.');

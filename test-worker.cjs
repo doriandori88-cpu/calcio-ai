@@ -93,3 +93,29 @@ test('HTML JavaScript parses and detail renderer escapes provider text',()=>{
 test('public Worker serves updated UI without needing API secrets',async()=>{
  const response=await app.worker.fetch(new Request('https://example.test/'),{});assert.equal(response.status,200);assert.match(await response.text(),/Contesto, motivazioni e scontri diretti/);
 });
+test('Champions recovery keeps 7–23 hour calendars across alternating passes, expires after 24 hours',async()=>{
+ for(const hours of [7,23,25]){
+  const values=new Map(),payloads=new Map();
+  const add=(path,data)=>{payloads.set(path,data);values.set('api:'+path,{data,fetchedAt:new Date(TEST_NOW-hours*3600000).toISOString(),expiresAt:TEST_NOW-1000});};
+  for(const id of [135,39,140,78,61,94,88])add('/leagues?id='+id+'&current=true',{response:[]});
+  const meta=(id,country)=>({league:{id,name:country+' League',type:'League'},country:{name:country},seasons:[{current:true,year:2026}]});
+  for(const [id,country,team] of [[103,'Norway',1],[218,'Austria',2]]){
+   add('/leagues?team='+team+'&current=true',{response:[meta(id,country)]});
+   add('/leagues?id='+id+'&current=true',{response:[meta(id,country)]});
+   add('/fixtures?league='+id+'&season=2026',{response:dataset(id,country,team).all});
+  }
+  const storage={get:async k=>Array.isArray(k)?new Map(k.map(x=>[x,values.get(x)])):values.get(k),put:async(k,v)=>values.set(k,v)};
+  for(const turn of [0,1]){
+   values.set('uclRecoveryTurn',turn);
+   const client={storage,stats:{cacheHits:0},get:async path=>{
+    if(path==='/leagues?id=2&current=true')return {response:[meta(2,'World')]};
+    if(path==='/fixtures?league=2&season=2026')return {response:[f]};
+    if(hours<24&&payloads.has(path))return structuredClone(payloads.get(path));
+    throw Object.assign(new Error('quota'),{code:'QUOTA'});
+   }};
+   const result=await app.analyzeEurope(client);
+   assert.equal(result.meta.domesticTeams,hours<24?2:0,`age ${hours}, turn ${turn}`);
+   if(hours<24){valid(result.matches[0].analysis);if(turn===1)assert.equal(client.stats.staleSource,true);}
+  }
+ }
+});
