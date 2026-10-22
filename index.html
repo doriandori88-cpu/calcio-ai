@@ -58,8 +58,8 @@ async function requestJSON(url,signal,onProgress,maxQuotaRetries=3){
     catch(e){if(signal?.aborted)throw abortError();throw new Error(e.name==='AbortError'?'Tempo di attesa scaduto. Riprova: i dati già preparati restano in cache.':'Impossibile leggere la risposta del server. Riprova.');}
     finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
     if(res.status===202&&j.code==='PREPARING'){onProgress?.(attempt,j.meta);await delay(2000,signal);continue;}
-    if(res.status===429&&j.code==='QUOTA'&&quotaRetries<maxQuotaRetries){quotaRetries++;for(let left=65;left>0;left--){onProgress?.(attempt,{...j.meta,retrySeconds:left});await delay(1000,signal);}continue;}
-    if(!res.ok||!j.ok)throw Object.assign(new Error(j.message||'Dati non disponibili.'),{code:j.code});
+    if(res.status===429&&j.code==='QUOTA'&&quotaRetries<maxQuotaRetries){quotaRetries++;for(let left=Math.max(65,Number(j.retryAfterSeconds)||0);left>0;left--){onProgress?.(attempt,{...j.meta,retrySeconds:left});await delay(1000,signal);}continue;}
+    if(!res.ok||!j.ok)throw Object.assign(new Error(j.message||'Dati non disponibili.'),{code:j.code,retryAfterSeconds:j.retryAfterSeconds});
     return j;
   }
   throw new Error('Preparazione ancora incompleta dopo 20 passaggi. Premi Aggiorna per riprendere.');
@@ -79,7 +79,7 @@ async function load(force=false){
     const j=await requestJSON('/api/analyze?league='+encodeURIComponent(league),ctl.signal,(n,m)=>{if(seq!==loadSeq)return;$('#status').textContent=m?.retrySeconds?`Pausa richiesta da API-Football: ripresa automatica tra ${m.retrySeconds} secondi. I dati già scaricati restano conservati.`:`Preparazione, passaggio ${n}/20 · ${m?.cacheHits??0} risposte recuperate dalla cache in questo passaggio. Puoi interrompere o cambiare campionato.`;});
     if(seq!==loadSeq)return;
     if(!validPayload(j))throw new Error('Formato del pronostico non valido.');
-    writeStore(key,j);currentStale=false;showPayload(j);if(!j.meta.statisticsDeferred&&!j.meta.staleSource)capture(j);if(j.meta.statisticsDeferred&&recoveryTries<60){recoveryTries++;recoveryTimer=setTimeout(()=>load(true),65000);}else if(!j.meta.statisticsDeferred)recoveryTries=0;
+    writeStore(key,j);currentStale=false;showPayload(j);if(!j.meta.statisticsDeferred&&!j.meta.staleSource)capture(j);if(j.meta.statisticsDeferred&&recoveryTries<60){recoveryTries++;recoveryTimer=setTimeout(()=>load(true),Math.max(65,Number(j.meta.retryAfterSeconds)||0)*1000);}else if(!j.meta.statisticsDeferred)recoveryTries=0;
   }catch(e){if(seq!==loadSeq)return;$('#status').textContent=(e.name==='AbortError'?'Caricamento interrotto.':e.message)+(current?' Mostro una copia precedente: non usarla come aggiornamento attuale.':'');currentStale=!!current;renderMatches();}
   finally{if(seq===loadSeq){$('#refresh').disabled=false;$('#cancel').hidden=true;}}
 }
@@ -111,16 +111,16 @@ async function loadDetails(id,btn){
   const retryButton=()=>{const retry=document.createElement('button');retry.textContent='Riprova dettagli';retry.addEventListener('click',()=>{panel.hidden=true;loadDetails(id,btn);});panel.appendChild(retry);};
   try{
     for(let attempt=0;attempt<4;attempt++){
-      let retry=false;
+      let retry=false,retrySeconds=65;
       try{
         let j=detailCache.get(id);
         if(!j||Date.now()-j.loadedAt>60000){j=await requestJSON('/api/details?fixture='+id,ctl.signal,(n,m)=>{status.textContent=m?.retrySeconds?'Pausa API: riprovo tra '+m.retrySeconds+' secondi.':'Preparazione dettagli…';},0);j.loadedAt=Date.now();if(!j.retryable&&!(j.warnings||[]).length)detailCache.set(id,j);}
         if(ctl.signal.aborted||!panel.isConnected)return;
-        renderDetails(panel,j);panel.appendChild(status);retry=!!j.retryable;
-      }catch(e){if(e.name==='AbortError')throw e;retry=['QUOTA','PREPARING','NETWORK'].includes(e.code);status.textContent=e.message;if(!retry){retryButton();return;}}
+        renderDetails(panel,j);panel.appendChild(status);retry=!!j.retryable;retrySeconds=Math.max(65,Number(j.retryAfterSeconds)||0);
+      }catch(e){if(e.name==='AbortError')throw e;retry=['QUOTA','PREPARING','NETWORK'].includes(e.code);retrySeconds=Math.max(65,Number(e.retryAfterSeconds)||0);status.textContent=e.message;if(!retry){retryButton();return;}}
       if(!retry){status.remove();return;}
       if(attempt===3){status.textContent='Il provider è ancora temporaneamente indisponibile. I dati già caricati restano visibili; puoi riprovare più tardi.';retryButton();return;}
-      for(let left=65;left>0;left--){status.textContent='Pausa API-Football: nuovo tentativo tra '+left+' secondi. Puoi chiudere questo pannello per interrompere.';await delay(1000,ctl.signal);}
+      for(let left=retrySeconds;left>0;left--){status.textContent='Pausa API-Football: nuovo tentativo tra '+left+' secondi. Puoi chiudere questo pannello per interrompere.';await delay(1000,ctl.signal);}
       status.textContent='Ripresa del caricamento…';
     }
   }catch(e){if(e.name!=='AbortError'){status.textContent=e.message;retryButton();}}

@@ -140,9 +140,9 @@ test('detail UI retries partial responses, keeps results visible, stops after 4 
  const ctx=vm.createContext({document,Intl,Date,URL,console,AbortController,DOMException});
  vm.runInContext(js.slice(0,js.indexOf("$('#refresh').addEventListener"))+`;globalThis.run=loadDetails;globalThis.configure=(request,wait)=>{requestJSON=request;delay=wait;detailCache.clear();};`,ctx);
  const btn={setAttribute(){}};let calls=0,waits=0;
- const partial={context:{round:'Group'},home:{name:'A'},away:{name:'B'},h2h:null,warnings:['quota'],retryable:true};
+ const partial={context:{round:'Group'},home:{name:'A'},away:{name:'B'},h2h:null,warnings:['quota'],retryable:true,retryAfterSeconds:120};
  ctx.configure(async()=>{calls++;return {...partial,retryable:calls<2,warnings:calls<2?['quota']:[]};},async()=>{waits++;assert.match(panel.html,/Group/);});
- await ctx.run('1',btn);assert.equal(calls,2);assert.equal(waits,65);
+ await ctx.run('1',btn);assert.equal(calls,2);assert.equal(waits,120);
  panel.hidden=true;calls=0;ctx.configure(async()=>{calls++;return {...partial};},async()=>{});
  await ctx.run('1',btn);assert.equal(calls,4);assert.ok(panel.children.some(x=>x.textContent==='Riprova dettagli'));
  panel.hidden=true;calls=0;ctx.configure(async()=>{calls++;return {...partial};},async(ms,signal)=>{await ctx.run('1',btn);if(signal.aborted)throw new DOMException('aborted','AbortError');});

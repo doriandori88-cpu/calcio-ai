@@ -76,3 +76,11 @@ Le versioni nuove sono `1.7.0-af` e `1.7.0-af-ucl`: storico distinto dalle versi
 precedenti, importazione 1.5/1.6 conservata e snapshot previsionali precedenti
 invalidati. L'archivio dei dati API-Football rimane riutilizzabile.
 `wrangler.jsonc` e secret `API_FOOTBALL_KEY` restano quelli esistenti.
+
+## Limiti API e diagnostica
+
+Il client legge separatamente le quote giornaliere e al minuto, rispetta Retry-After (secondi o data HTTP) e condivide la pausa tra dettagli e recupero in background. In assenza di un tempo dichiarato, i rifiuti consecutivi causano pause progressive da 65 secondi fino a 15 minuti. Un successo azzera il conteggio dei rifiuti. La UI usa il tempo comunicato dal server e conserva i dettagli parziali.
+
+`/api/coverage?league=135` espone `rateDiagnostics`: solo gli ultimi 10 campioni con orario, endpoint senza parametri, stato HTTP e contatori numerici. Nessuna chiave, IP o intestazione completa. Intestazioni mancanti restano null, non diventano zero. I campioni permettono di distinguere un limite dichiarato da un rifiuto privo di contatori; non provano da soli la causa del blocco. Fonte: https://www.api-football.com/news/post/how-ratelimit-works
+
+Test: `node --test test-worker.cjs test-rate.cjs`. Non costituiscono validazione delle previsioni.
