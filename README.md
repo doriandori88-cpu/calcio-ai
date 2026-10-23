@@ -27,30 +27,6 @@ si astiene invece di equiparare implicitamente le leghe. La mappatura usa il pae
 nei metadati API-Football della lega già identificata. Stesso campionato: fattore 1.
 Prima della stagione 2027/28 occorre aggiornare e verificare il riferimento.
 
-## Classifica e fase del torneo
-
-Il pulsante **Classifica e scontri diretti**, presente in entrambe le
-competizioni, carica `/api/details?fixture=ID` su richiesta. Usa la classifica
-API-Football della competizione e stagione della gara, con punti, gare giocate,
-fase/gruppo, distanza dalla capolista, zona indicata dal provider e aggiornamento.
-Nessun bonus automatico nelle probabilità. Classifiche di gruppi/fasi ambigui sono
-escluse; per gare già iniziate non si mostra la classifica corrente come prepartita.
-Quote, assenze e formazioni non sono integrate.
-
-## Scontri diretti
-
-Ricerca dedicata `/fixtures/headtohead` tra gli ID esatti, in tutte le competizioni:
-fino a 10 gare ufficiali nei cinque anni precedenti. La tabella mostra data,
-competizione, sede reale e risultato sui 90 minuti. Esclude duplicati, amichevoli,
-gare future e risultati AET/PEN senza punteggio valido sui 90 minuti.
-Le vittorie del riepilogo sono riferite alle due squadre della partita analizzata,
-non al campo in cui si disputarono i precedenti. Gli H2H sono solo descrittivi.
-Dati mancanti o richieste fallite sono distinti da zero precedenti.
-
-Classifica e storico vengono richiesti all'apertura dei dettagli per non rallentare
-il recupero dei campionati e delle statistiche. Cache classifica: 1 ora; H2H: 6 ore.
-Chiudere e riaprire i dettagli permette di ritentare in caso di errore temporaneo.
-
 ## Verifica e pubblicazione
 
 Richiede Node 22+ per i test locali:
@@ -78,7 +54,7 @@ invalidati. L'archivio dei dati API-Football rimane riutilizzabile.
 
 ## Limiti API e diagnostica
 
-Il client legge separatamente le quote giornaliere e al minuto, rispetta Retry-After (secondi o data HTTP) e condivide la pausa tra dettagli e recupero in background. In assenza di un tempo dichiarato, i rifiuti consecutivi causano pause progressive da 65 secondi fino a 15 minuti. Un successo azzera il conteggio dei rifiuti. La UI usa il tempo comunicato dal server e conserva i dettagli parziali.
+Il client legge separatamente le quote giornaliere e al minuto, rispetta Retry-After (secondi o data HTTP) e condivide la pausa tra le richieste di analisi e il recupero in background. In assenza di un tempo dichiarato, i rifiuti consecutivi causano pause progressive da 65 secondi fino a 15 minuti. Un successo azzera il conteggio dei rifiuti. La UI usa il tempo comunicato dal server .
 
 `/api/coverage?league=135` espone `rateDiagnostics`: solo gli ultimi 10 campioni con orario, endpoint senza parametri, stato HTTP e contatori numerici. Nessuna chiave, IP o intestazione completa. Intestazioni mancanti restano null, non diventano zero. I campioni permettono di distinguere un limite dichiarato da un rifiuto privo di contatori; non provano da soli la causa del blocco. Fonte: https://www.api-football.com/news/post/how-ratelimit-works
 

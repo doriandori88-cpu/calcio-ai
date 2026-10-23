@@ -7,7 +7,7 @@ class TestDate extends Date {constructor(...args){super(...(args.length?args:[TE
 function load(file){
  const source=fs.readFileSync(file,'utf8').replace('export class CalcioArchive','class CalcioArchive').replace('export default {','const worker = {');
  const context=vm.createContext({Request,Response,URL,console,Date:TestDate,setTimeout,clearTimeout,TextEncoder,crypto:globalThis.crypto});
- vm.runInContext(source+`;globalThis.app={competitionData,europeanPrediction,analyzeEurope,analyze,predictXG,model,completed,h2hStats,details,buildElo,avg,leagueBase,CalcioArchive,INDEX_HTML,worker,${file.includes('original')?'':'standingsContext,leagueComparison,associationRank,'}VERSION,EURO_VERSION};`,context);
+ vm.runInContext(source+`;globalThis.app={competitionData,europeanPrediction,analyzeEurope,analyze,predictXG,model,completed,h2hStats,buildElo,avg,leagueBase,CalcioArchive,INDEX_HTML,worker,${file.includes('original')?'':'leagueComparison,associationRank,'}VERSION,EURO_VERSION};`,context);
  return context.app;
 }
 const app=load('worker.js'),old=fs.existsSync('original-worker.js')?load('original-worker.js'):null;
@@ -60,38 +60,19 @@ test('H2H: ten recent official matches, unique IDs, reversed venues, 90-minute A
  const h=app.h2hStats(rows,1,2,Date.parse('2026-10-21T00:00:00Z'));
  assert.equal(h.n,10);assert.equal(h.draws,1);assert.equal(new Set(h.matches.map(x=>x.id)).size,10);assert.equal(h.matches[0].score.home,1);assert.equal(h.matches[0].score.away,1);assert.equal(h.homeWins+h.awayWins+h.draws,h.n);
 });
-function standingPayload(){return {response:[{league:{id:2,name:'Champions League',season:2026,standings:[[{team:{id:1},rank:2,points:7,all:{played:3},update:'2026-10-21T00:00:00Z'},{team:{id:2},rank:1,points:9,all:{played:4},description:'Promotion'}]]}}]};}
-test('context uses correct league/season/group and observed points; ambiguous rows withheld',()=>{
- const p=standingPayload(),c=app.standingsContext(p,f);assert.equal(c.home.gapToLeader,2);assert.equal(c.home.played,3);assert.equal(c.home.leaderPlayed,4);assert.equal(c.home.interpretation,undefined);
- p.response[0].league.standings.push(p.response[0].league.standings[0]);assert.equal(app.standingsContext(p,f).home,null);
- p.response[0].league.season=2025;assert.equal(app.standingsContext(p,f),null);
-});
-test('details fetch dedicated history and standings; optional failure is not zero history',async()=>{
- const paths=[];const client={get:async path=>{paths.push(path);if(path.startsWith('/fixtures?id='))return {response:[f]};if(path.startsWith('/standings'))return standingPayload();if(path.startsWith('/fixtures/headtohead?'))return {response:[fixture(2,1,0,2)]};throw Error(path);}};
- const d=await app.details(client,f.fixture.id);assert.equal(paths.length,3);assert.match(paths[2],/h2h=1-2&from=\d{4}-\d{2}-\d{2}&to=/);assert.equal(d.h2h.n,1);assert.equal(d.h2h.homeWins,1);assert.equal(d.affectsPrediction,false);
- const broken={get:async path=>path.startsWith('/fixtures/headtohead?')?Promise.reject(Object.assign(new Error('quota'),{code:'QUOTA'})):client.get(path)};
- const fail=await app.details(broken,f.fixture.id);assert.equal(fail.h2h,null);assert.ok(fail.warnings.length);assert.ok(fail.context.standings);
-});
-test('past match does not receive present-day standings',async()=>{
- const past=fixture(1,2,1,0);past.league=f.league;const paths=[];
- const d=await app.details({get:async path=>{paths.push(path);return {response:path.startsWith('/fixtures?id=')?[past]:[]};}},past.fixture.id);
- assert.ok(paths.every(x=>!x.startsWith('/standings')));assert.equal(d.context.standings,null);
-});
 test('old durable snapshot is not served after model revision',async()=>{
  const values=new Map([['snapshot',{ok:true,matches:[{old:true}],meta:{dataRevision:'archive-ucl-1',generatedAt:new Date().toISOString()}}]]);
  const storage={get:async k=>values.get(k),put:async(k,v)=>values.set(k,v),delete:async k=>values.delete(k),getAlarm:async()=>null,setAlarm:async()=>{},deleteAlarm:async()=>{}};
  const archive=new app.CalcioArchive({storage},{});const response=await archive.fetch(new Request('https://example.test/api/analyze?league=135'));const b=await response.json();assert.equal(b.code,'CONFIG');assert.equal(b.matches,undefined);
 });
-test('HTML JavaScript parses and detail renderer escapes provider text',()=>{
- const js=app.INDEX_HTML.match(/<script>([\s\S]*?)<\/script>/)[1];new vm.Script(js);
- const ctx=vm.createContext({document:{querySelector:()=>({})},Intl,Date,URL,console});
- vm.runInContext(js.slice(0,js.indexOf("$('#refresh').addEventListener"))+';globalThis.render=renderDetails;globalThis.checkPayload=validPayload;',ctx);
- const panel={};ctx.render(panel,{context:{round:'<img src=x onerror=alert(1)>'},home:{name:'A'},away:{name:'B'},warnings:['<script>'],h2h:null,generatedAt:new Date().toISOString()});
- assert.ok(!panel.innerHTML.includes('<img'));assert.ok(panel.innerHTML.includes('&lt;img'));assert.ok(panel.innerHTML.includes('non equivale a zero'));
- assert.equal(ctx.checkPayload({ok:true,matches:[],meta:{version:'1.6.0-af-ucl'}}),false);assert.equal(ctx.checkPayload({ok:true,matches:[],meta:{version:'1.7.0-af-ucl'}}),true);
+test('public UI keeps forecasts and removes the external-context panel',async()=>{
+ const response=await app.worker.fetch(new Request('https://example.test/'),{}),html=await response.text();
+ assert.equal(response.status,200);new vm.Script(html.match(/<script>([\s\S]*?)<\/script>/)[1]);
+ assert.match(html,/Analisi completa e motivi/);assert.doesNotMatch(html,/Classifica e scontri diretti|data-fixture|api\/details|loadDetails|detailLoads|modelByFixture/);
 });
-test('public Worker serves updated UI without needing API secrets',async()=>{
- const response=await app.worker.fetch(new Request('https://example.test/'),{});assert.equal(response.status,200);assert.match(await response.text(),/Classifica e scontri diretti/);
+test('removed details endpoint is rejected before provider access',async()=>{
+ const response=await app.worker.fetch(new Request('https://example.test/api/details?fixture=1550158'),{});
+ assert.equal(response.status,404);assert.equal((await response.json()).code,'INPUT');
 });
 test('Champions recovery keeps 7–23 hour calendars across alternating passes, expires after 24 hours',async()=>{
  for(const hours of [7,23,25]){
@@ -118,33 +99,4 @@ test('Champions recovery keeps 7–23 hour calendars across alternating passes, 
    if(hours<24){valid(result.matches[0].analysis);if(turn===1)assert.equal(client.stats.staleSource,true);}
   }
  }
-});
-test('details reuse a fresh validated calendar and mark partial transient errors for retry',async()=>{
- const values=new Map([
-  ['api:/leagues?id=2&current=true',{expiresAt:TEST_NOW+1000,data:{response:[{league:{id:2},seasons:[{current:true,year:2026}]}]}}],
-  ['api:/fixtures?league=2&season=2026',{expiresAt:TEST_NOW+1000,fetchedAt:new Date(TEST_NOW-1000).toISOString(),data:{response:[f]}}]
- ]);
- const paths=[],client={storage:{get:async k=>values.get(k)},stats:{cacheHits:0},get:async path=>{paths.push(path);if(path.startsWith('/standings?'))return standingPayload();if(path.startsWith('/fixtures?id='))return {response:[f]};throw Object.assign(new Error('quota'),{code:'QUOTA'});}};
- let d=await app.details(client,f.fixture.id);
- assert.equal(paths.some(p=>p.startsWith('/fixtures?id=')),false);assert.equal(client.stats.cacheHits,1);
- assert.equal(d.retryable,true);assert.equal(d.retryAfterSeconds,65);assert.ok(d.context.standings);assert.equal(d.h2h,null);
- values.get('api:/fixtures?league=2&season=2026').expiresAt=TEST_NOW-1;paths.length=0;
- await app.details(client,f.fixture.id);assert.equal(paths[0],'/fixtures?id='+f.fixture.id);
- client.get=async path=>{if(path.startsWith('/fixtures?id='))return {response:[f]};throw Object.assign(new Error('plan'),{code:'PLAN'});};
- d=await app.details(client,f.fixture.id);assert.equal(d.retryable,false);
-});
-test('detail UI retries partial responses, keeps results visible, stops after 4 attempts and supports closing',async()=>{
- const js=app.INDEX_HTML.match(/<script>([\s\S]*?)<\/script>/)[1];
- const panel={hidden:true,isConnected:true,children:[],appendChild(n){if(!this.children.includes(n))this.children.push(n);},set innerHTML(v){this.html=v;this.children=[];}};
- const document={querySelector:()=>panel,createElement:()=>({setAttribute(){},addEventListener(){},remove(){}})};
- const ctx=vm.createContext({document,Intl,Date,URL,console,AbortController,DOMException});
- vm.runInContext(js.slice(0,js.indexOf("$('#refresh').addEventListener"))+`;globalThis.run=loadDetails;globalThis.configure=(request,wait)=>{requestJSON=request;delay=wait;detailCache.clear();};`,ctx);
- const btn={setAttribute(){}};let calls=0,waits=0;
- const partial={context:{round:'Group'},home:{name:'A'},away:{name:'B'},h2h:null,warnings:['quota'],retryable:true,retryAfterSeconds:120};
- ctx.configure(async()=>{calls++;return {...partial,retryable:calls<2,warnings:calls<2?['quota']:[]};},async()=>{waits++;assert.match(panel.html,/Group/);});
- await ctx.run('1',btn);assert.equal(calls,2);assert.equal(waits,120);
- panel.hidden=true;calls=0;ctx.configure(async()=>{calls++;return {...partial};},async()=>{});
- await ctx.run('1',btn);assert.equal(calls,4);assert.ok(panel.children.some(x=>x.textContent==='Riprova dettagli'));
- panel.hidden=true;calls=0;ctx.configure(async()=>{calls++;return {...partial};},async(ms,signal)=>{await ctx.run('1',btn);if(signal.aborted)throw new DOMException('aborted','AbortError');});
- await ctx.run('1',btn);assert.equal(calls,1);assert.equal(panel.hidden,true);
 });
