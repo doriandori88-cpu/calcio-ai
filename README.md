@@ -27,13 +27,12 @@ si astiene invece di equiparare implicitamente le leghe. La mappatura usa il pae
 nei metadati API-Football della lega già identificata. Stesso campionato: fattore 1.
 Prima della stagione 2027/28 occorre aggiornare e verificare il riferimento.
 
-## Contesto e motivazioni
+## Classifica e fase del torneo
 
-Il pulsante **Contesto, motivazioni e scontri diretti**, presente in entrambe le
+Il pulsante **Classifica e scontri diretti**, presente in entrambe le
 competizioni, carica `/api/details?fixture=ID` su richiesta. Usa la classifica
 API-Football della competizione e stagione della gara, con punti, gare giocate,
 fase/gruppo, distanza dalla capolista, zona indicata dal provider e aggiornamento.
-Una lettura motivazionale è esplicitamente un'ipotesi, non una misura psicologica.
 Nessun bonus automatico nelle probabilità. Classifiche di gruppi/fasi ambigui sono
 escluse; per gare già iniziate non si mostra la classifica corrente come prepartita.
 Quote, assenze e formazioni non sono integrate.

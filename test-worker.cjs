@@ -62,7 +62,7 @@ test('H2H: ten recent official matches, unique IDs, reversed venues, 90-minute A
 });
 function standingPayload(){return {response:[{league:{id:2,name:'Champions League',season:2026,standings:[[{team:{id:1},rank:2,points:7,all:{played:3},update:'2026-10-21T00:00:00Z'},{team:{id:2},rank:1,points:9,all:{played:4},description:'Promotion'}]]}}]};}
 test('context uses correct league/season/group and observed points; ambiguous rows withheld',()=>{
- const p=standingPayload(),c=app.standingsContext(p,f);assert.equal(c.home.gapToLeader,2);assert.equal(c.home.played,3);assert.equal(c.home.leaderPlayed,4);assert.match(c.home.interpretation,/possibile incentivo/);
+ const p=standingPayload(),c=app.standingsContext(p,f);assert.equal(c.home.gapToLeader,2);assert.equal(c.home.played,3);assert.equal(c.home.leaderPlayed,4);assert.equal(c.home.interpretation,undefined);
  p.response[0].league.standings.push(p.response[0].league.standings[0]);assert.equal(app.standingsContext(p,f).home,null);
  p.response[0].league.season=2025;assert.equal(app.standingsContext(p,f),null);
 });
@@ -91,7 +91,7 @@ test('HTML JavaScript parses and detail renderer escapes provider text',()=>{
  assert.equal(ctx.checkPayload({ok:true,matches:[],meta:{version:'1.6.0-af-ucl'}}),false);assert.equal(ctx.checkPayload({ok:true,matches:[],meta:{version:'1.7.0-af-ucl'}}),true);
 });
 test('public Worker serves updated UI without needing API secrets',async()=>{
- const response=await app.worker.fetch(new Request('https://example.test/'),{});assert.equal(response.status,200);assert.match(await response.text(),/Contesto, motivazioni e scontri diretti/);
+ const response=await app.worker.fetch(new Request('https://example.test/'),{});assert.equal(response.status,200);assert.match(await response.text(),/Classifica e scontri diretti/);
 });
 test('Champions recovery keeps 7–23 hour calendars across alternating passes, expires after 24 hours',async()=>{
  for(const hours of [7,23,25]){
