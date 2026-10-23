@@ -125,3 +125,12 @@ test('UI offers six competitions and rejects cached data from a different league
  for(const id of [135,39,78,140,61,2])assert.ok(app.INDEX_HTML.includes('option value="'+id+'"'));
  const j={ok:true,matches:[],meta:{version:'1.7.0-af',leagueId:39}};assert.equal(ctx.valid(j,'39'),true);assert.equal(ctx.valid(j,'135'),false);
 });
+
+test('recovery rotates blocked leagues and prioritizes a missing calendar over statistics',async()=>{
+ const rows=new Map(),storage={get:async k=>rows.get(k),put:async(k,v)=>rows.set(k,v)};
+ for(const id of [39,78,140])await app.scopedArchive(storage,id).put('recovery',{until:TEST_NOW+10000,attempts:0});
+ await app.scopedArchive(storage,39).put('lastAttempt',{at:new Date(TEST_NOW).toISOString(),upstreamAt:null});
+ await app.scopedArchive(storage,140).put('lastAttempt',{at:new Date(TEST_NOW-1000).toISOString(),upstreamAt:null});
+ await app.scopedArchive(storage,78).put('snapshot',{ok:true});
+ const archive=new app.CalcioArchive({storage},{});assert.deepEqual(Array.from(await archive.jobs(),j=>j.league),[140,39,78]);
+});

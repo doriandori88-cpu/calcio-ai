@@ -63,3 +63,5 @@ Il client legge separatamente le quote giornaliere e al minuto, rispetta Retry-A
 `/api/coverage?league=135` espone `rateDiagnostics`: solo gli ultimi 10 campioni con orario, endpoint senza parametri, stato HTTP e contatori numerici. Nessuna chiave, IP o intestazione completa. Intestazioni mancanti restano null, non diventano zero. I campioni permettono di distinguere un limite dichiarato da un rifiuto privo di contatori; non provano da soli la causa del blocco. Fonte: https://www.api-football.com/news/post/how-ratelimit-works
 
 Test: `node --test test-worker.cjs test-rate.cjs`. Non costituiscono validazione delle previsioni.
+
+Il primo recupero di un campionato nazionale usa al massimo due chiamate upstream: metadati e calendario. Le statistiche aggiuntive sono recuperate nei passaggi successivi. Nella coda hanno precedenza i campionati senza snapshot; a parità di priorità ruotano in base all’ultimo tentativo, anche quando la pausa API impedisce nuove chiamate.

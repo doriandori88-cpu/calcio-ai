@@ -47,7 +47,7 @@ function applyRate(throttle,rate,status,quota,endpoint,now=Date.now()){
   return sample;
 }
 function quotaPause(throttle){const e=new AppError('QUOTA','Pausa API: i dati archiviati restano disponibili.',429);e.retryAfterSeconds=Math.max(1,Math.ceil(((throttle.blockedUntil||0)-Date.now())/1000));return e;}
-async function makeClient(request,env,storage=null){
+async function makeClient(request,env,storage=null,options={}){
   const key=env.API_FOOTBALL_KEY||env.API_KEY;
   if(!key)throw new AppError('CONFIG','Aggiungi il secret API_FOOTBALL_KEY in Cloudflare.',503);
   const fingerprint=(await digest(key)).slice(0,24),origin=new URL(request.url).origin;
@@ -68,7 +68,7 @@ async function makeClient(request,env,storage=null){
         const throttle=storage?(await storage.get('throttle')||{}):q;
         if((throttle.blockedUntil||0)>Date.now()){stats.retryAfterSeconds=quotaPause(throttle).retryAfterSeconds;throw quotaPause(throttle);}
         const wait=Math.max(0,(throttle.intervalMs||2500)-(Date.now()-(throttle.last||0)));
-        if(stats.upstreamCalls>=5&&storage||Date.now()+wait+4000>deadline)throw new Preparing();
+        if(stats.upstreamCalls>=(options.maxUpstreamCalls??5)&&storage||Date.now()+wait+4000>deadline)throw new Preparing();
         if(wait)await sleep(wait);
         throttle.last=Date.now();q.last=throttle.last;if(storage)await storage.put('throttle',throttle);
         stats.upstreamCalls++;
@@ -481,11 +481,11 @@ function validateApi(url){
   const ids=(url.searchParams.get('ids')||'').split(',');
   if(url.pathname==='/api/results'&&(ids.length>20||!ids.every(x=>/^[1-9]\d{0,9}$/.test(x))))throw new AppError('INPUT','Massimo 20 ID partita validi.',400);
 }
-async function handleApi(request,env,storage=null){
+async function handleApi(request,env,storage=null,options={}){
   let client;
   try{
     const url=new URL(request.url);validateApi(url);
-    client=await makeClient(request,env,storage);
+    client=await makeClient(request,env,storage,options);
     const ids=(url.searchParams.get('ids')||'').split(',');
     const body=url.pathname==='/api/analyze'?await analyze(client,url.searchParams.get('league')||'135'):await results(client,[...new Set(ids)]);
     return json({ok:true,...body,meta:{...body.meta,...client.stats,version:body.meta?.modelVersion||VERSION,dataRevision:DATA_REVISION,generatedAt:iso(),timeZone:'Europe/Rome',validated:false}});
@@ -532,7 +532,8 @@ export class CalcioArchive {
   async run(request,league=Number(new URL(request.url).searchParams.get('league')||135)){
     this.busy=true;const storage=scopedArchive(this.ctx.storage,league);
     try{
-      const response=await handleApi(request,this.env,storage),body=await response.clone().json();
+      const firstLoad=!await archiveGet(storage,'snapshot');
+      const response=await handleApi(request,this.env,storage,{maxUpstreamCalls:firstLoad&&league!==2?2:5}),body=await response.clone().json();
       const previous=await storage.get('lastAttempt'),calls=body.meta?.upstreamCalls||0;
       await storage.put('lastAttempt',{at:iso(),upstreamAt:calls?iso():previous?.upstreamAt||null,ok:body.ok,code:body.code||null,message:body.message||null,upstreamCalls:calls});
       const job=await storage.get('recovery')||{until:0,attempts:60};
@@ -543,7 +544,15 @@ export class CalcioArchive {
     }finally{this.busy=false;}
   }
   async jobs(){
-    const jobs=[];for(const league of Object.keys(LEAGUES).map(Number)){const storage=scopedArchive(this.ctx.storage,league),job=await storage.get('recovery');if(job&&job.until>Date.now()&&job.attempts<60)jobs.push({league,at:Date.parse((await storage.get('lastAttempt'))?.upstreamAt)||0});}return jobs.sort((a,b)=>a.at-b.at);
+    const jobs=[];
+    for(const league of Object.keys(LEAGUES).map(Number)){
+      const storage=scopedArchive(this.ctx.storage,league),job=await storage.get('recovery');
+      if(job&&job.until>Date.now()&&job.attempts<60){
+        const attempt=await storage.get('lastAttempt'),snapshot=await archiveGet(storage,'snapshot');
+        jobs.push({league,at:Date.parse(attempt?.at||attempt?.upstreamAt)||0,missingCalendar:!snapshot});
+      }
+    }
+    return jobs.sort((a,b)=>Number(b.missingCalendar)-Number(a.missingCalendar)||a.at-b.at);
   }
   async schedule(){if((await this.jobs()).length){const throttle=await this.ctx.storage.get('throttle')||{},next=Math.max(Date.now()+65000,(throttle.blockedUntil||0)+1000);const current=await this.ctx.storage.getAlarm();if(!current||current<(throttle.blockedUntil||0)+1000)await this.ctx.storage.setAlarm(next);}else await this.ctx.storage.deleteAlarm();}
   async alarm(){

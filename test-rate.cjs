@@ -16,3 +16,11 @@ s.advance(121000);c=await s.api.makeClient(req,env,s.storage);await assert.rejec
 test('zero remaining minute pauses subsequent calls even after success',async()=>{const s=setup([response(200,{'X-RateLimit-Remaining':'0','X-RateLimit-Limit':'10'})]);const c=await s.api.makeClient(new Request('https://example.com'),{API_KEY:'zero-test'},s.storage);await c.get('/fixtures?id=1');await assert.rejects(c.get('/fixtures?id=2'),e=>e.code==='QUOTA');assert.equal(s.calls(),1);assert.equal(s.rows.get('throttle').intervalMs,6500);});
 test('HTTP error exposes actual wait in JSON and Retry-After',async()=>{const s=setup([response(429,{'Retry-After':'180'},{rateLimit:'Too many requests'})]);const r=await s.api.handleApi(new Request('https://example.com/api/results?ids=7'),{API_KEY:'http-test'},s.storage);assert.equal(r.status,429);assert.equal(r.headers.get('retry-after'),'180');assert.equal((await r.json()).retryAfterSeconds,180);});
 test('bounded diagnostics and increasing capped fallback',()=>{const {api}=setup([]),t={};for(let i=0;i<20;i++)api.applyRate(t,{},429,true,'/fixtures?id=123',i*1000000);assert.equal(t.diagnostics.length,10);assert.equal(t.blockedUntil-19000000,900000);});
+
+test('first-load call budget stops statistics without blocking cache or marking provider quota',async()=>{
+ const s=setup([response(200),response(200)]),req=new Request('https://example.com');
+ const c=await s.api.makeClient(req,{API_KEY:'budget-test'},s.storage,{maxUpstreamCalls:2});
+ await c.get('/leagues?id=39&current=true');await c.get('/fixtures?league=39&season=2026');
+ await assert.rejects(c.get('/fixtures/statistics?fixture=1'),e=>e.code==='PREPARING');
+ await c.get('/fixtures?league=39&season=2026');assert.equal(s.calls(),2);assert.ok(!s.rows.get('throttle').blockedUntil);
+});
