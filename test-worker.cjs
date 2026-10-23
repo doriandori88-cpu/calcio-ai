@@ -7,7 +7,7 @@ class TestDate extends Date {constructor(...args){super(...(args.length?args:[TE
 function load(file){
  const source=fs.readFileSync(file,'utf8').replace('export class CalcioArchive','class CalcioArchive').replace('export default {','const worker = {');
  const context=vm.createContext({Request,Response,URL,console,Date:TestDate,setTimeout,clearTimeout,TextEncoder,crypto:globalThis.crypto});
- vm.runInContext(source+`;globalThis.app={competitionData,europeanPrediction,analyzeEurope,analyze,predictXG,model,completed,h2hStats,buildElo,avg,leagueBase,CalcioArchive,INDEX_HTML,worker,${file.includes('original')?'':'leagueComparison,associationRank,'}VERSION,EURO_VERSION};`,context);
+ vm.runInContext(source+`;globalThis.app={competitionData,europeanPrediction,analyzeEurope,analyze,predictXG,model,completed,h2hStats,buildElo,avg,leagueBase,CalcioArchive,INDEX_HTML,worker,${file.includes('original')?'':'leagueComparison,associationRank,scopedArchive,LEAGUES,'}VERSION,EURO_VERSION};`,context);
  return context.app;
 }
 const app=load('worker.js'),old=fs.existsSync('original-worker.js')?load('original-worker.js'):null;
@@ -99,4 +99,29 @@ test('Champions recovery keeps 7–23 hour calendars across alternating passes, 
    if(hours<24){valid(result.matches[0].analysis);if(turn===1)assert.equal(client.stats.staleSource,true);}
   }
  }
+});
+
+test('each added domestic league uses its own season, fixtures and domestic model',async()=>{
+ for(const [id,name] of [[39,'Premier League'],[78,'Bundesliga'],[140,'La Liga'],[61,'Ligue 1']]){
+  const d=dataset(id,'Country',1),other=dataset(id,'Country',2);const past=[...d.cf,...other.cf];
+  for(const g of past)g.league={id,name,season:2026};
+  const next=fixture(1,2,null,null,'2026-11-01T18:00:00Z',{league:{id,name,season:2026}});next.fixture.status.short='NS';
+  const paths=[],client={get:async path=>{paths.push(path);if(path==='/leagues?id='+id+'&current=true')return {response:[{league:{id,name},seasons:[{current:true,year:2026}]}]};if(path==='/fixtures?league='+id+'&season=2026')return {response:[...past,next]};if(path.startsWith('/fixtures?ids=')||path.startsWith('/fixtures/statistics?'))return {response:[]};throw Error(path);}};
+  const j=await app.analyze(client,String(id));assert.equal(j.meta.leagueId,id);assert.equal(j.meta.leagueName,name);assert.equal(j.matches.length,1);valid(j.matches[0].analysis);assert.ok(j.matches[0].analysis.explain.some(x=>x.includes(name)));assert.ok(paths.every(p=>!p.includes('league=135')&&!p.includes('league=2')));
+ }
+});
+test('all competition snapshots are isolated and recovery includes new leagues while throttle is shared',async()=>{
+ const rows=new Map(),storage={get:async k=>rows.get(k),put:async(k,v)=>rows.set(k,v),delete:async k=>rows.delete(k)};
+ for(const id of Object.keys(app.LEAGUES).map(Number)){
+  const scoped=app.scopedArchive(storage,id);await scoped.put('snapshot',{league:id});await scoped.put('recovery',{until:TEST_NOW+100000,attempts:0});await scoped.put('lastAttempt',{upstreamAt:new Date(TEST_NOW-id*1000).toISOString()});await scoped.put('throttle',{shared:id});
+ }
+ for(const id of Object.keys(app.LEAGUES).map(Number))assert.equal((await app.scopedArchive(storage,id).get('snapshot')).league,id);
+ const archive=new app.CalcioArchive({storage},{});assert.deepEqual(Array.from(await archive.jobs(),j=>j.league).sort((a,b)=>a-b),[2,39,61,78,135,140]);
+ assert.equal([...rows.keys()].filter(k=>k.includes('throttle')).length,1);
+});
+test('UI offers six competitions and rejects cached data from a different league',()=>{
+ const js=app.INDEX_HTML.match(/<script>([\s\S]*?)<\/script>/)[1],ctx=vm.createContext({document:{querySelector:()=>({})},Intl,Date,URL,console});
+ vm.runInContext(js.slice(0,js.indexOf("$('#refresh').addEventListener"))+';globalThis.valid=validPayload;',ctx);
+ for(const id of [135,39,78,140,61,2])assert.ok(app.INDEX_HTML.includes('option value="'+id+'"'));
+ const j={ok:true,matches:[],meta:{version:'1.7.0-af',leagueId:39}};assert.equal(ctx.valid(j,'39'),true);assert.equal(ctx.valid(j,'135'),false);
 });

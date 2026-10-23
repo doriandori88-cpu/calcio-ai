@@ -3,6 +3,10 @@
 Worker Cloudflare su branch `calcio-ai-1.2`. `worker.js` contiene API e HTML incorporato;
 `index.html` ne è la copia leggibile. Il nome del branch e del Worker resta invariato.
 
+## Campionati disponibili
+
+Serie A (135), Premier League (39), Bundesliga (78), La Liga (140), Ligue 1 (61) e Champions League (2). I campionati nazionali usano lo stesso modello domestico con dati della propria competizione e stagione corrente. Snapshot e lavori di recupero sono separati per campionato; archivio delle statistiche e limite API restano condivisi. Il recupero parte quando si apre la competizione e può richiedere più passaggi. Dati non disponibili restano mancanti, senza inventare xG.
+
 ## Confronto Champions
 
 Il modello precedente confrontava direttamente indici relativi a campionati diversi.
