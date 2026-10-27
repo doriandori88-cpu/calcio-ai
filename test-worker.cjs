@@ -134,3 +134,15 @@ test('recovery rotates blocked leagues and prioritizes a missing calendar over s
  await app.scopedArchive(storage,78).put('snapshot',{ok:true});
  const archive=new app.CalcioArchive({storage},{});assert.deepEqual(Array.from(await archive.jobs(),j=>j.league),[140,39,78]);
 });
+
+test('provider pause serves bounded future archived forecasts, preserves timestamps and recovery',async()=>{
+ for(const [age,revision,league,expected] of [[2,'archive-context-3',135,200],[8,'archive-context-3',135,429],[2,'old',135,429],[2,'archive-context-3',39,429]]){
+  const saved={ok:true,coverage:[],matches:[{id:1,date:'2026-10-20T18:00:00Z'},{id:2,date:'2026-10-25T18:00:00Z'}],meta:{leagueId:league,dataRevision:revision,generatedAt:new Date(TEST_NOW-age*864e5).toISOString()}};
+  const rows=new Map([['snapshot',saved],['throttle',{blockedUntil:TEST_NOW+120000}]]);
+  const storage={get:async k=>rows.get(k),put:async(k,v)=>rows.set(k,v),delete:async k=>rows.delete(k),getAlarm:async()=>null,setAlarm:async()=>{},deleteAlarm:async()=>{}};
+  const archive=new app.CalcioArchive({storage},{API_KEY:'fallback-test'}),res=await archive.fetch(new Request('https://example.test/api/analyze?league=135')),body=await res.json();
+  assert.equal(res.status,expected);
+  if(expected===200){assert.deepEqual(body.matches.map(x=>x.id),[2]);assert.equal(body.meta.generatedAt,saved.meta.generatedAt);assert.equal(body.meta.staleSource,true);assert.equal(body.meta.refreshing,true);assert.ok(body.meta.retryAfterSeconds>=120);assert.equal(rows.get('snapshot'),saved);assert.ok(rows.get('recovery'));assert.equal(rows.get('lastAttempt').code,'QUOTA');}
+  else assert.equal(body.code,'QUOTA');
+ }
+});

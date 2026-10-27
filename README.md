@@ -65,3 +65,5 @@ Il client legge separatamente le quote giornaliere e al minuto, rispetta Retry-A
 Test: `node --test test-worker.cjs test-rate.cjs`. Non costituiscono validazione delle previsioni.
 
 Il primo recupero di un campionato nazionale usa al massimo due chiamate upstream: metadati e calendario. Le statistiche aggiuntive sono recuperate nei passaggi successivi. Nella coda hanno precedenza i campionati senza snapshot; a parità di priorità ruotano in base all’ultimo tentativo, anche quando la pausa API impedisce nuove chiamate.
+
+Durante un errore temporaneo QUOTA, NETWORK o PREPARING, il server può mostrare l'ultima previsione della stessa competizione e revisione, risalente al massimo a 7 giorni. Restano soltanto gare future entro 14 giorni. Data della stima e probabilità originali sono conservate, la copia è segnalata come non aggiornata e non entra nello storico come nuova previsione; il recupero continua con le pause API. Lo snapshot originale non viene sovrascritto dal ripiego. Nessun cambiamento al modello numerico.
