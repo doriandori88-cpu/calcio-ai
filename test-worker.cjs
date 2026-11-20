@@ -146,3 +146,26 @@ test('provider pause serves bounded future archived forecasts, preserves timesta
   else assert.equal(body.code,'QUOTA');
  }
 });
+
+test('free Serie A uses the configured token, publishes forecasts and verifies only its own fixture IDs',async()=>{
+ const source=fs.readFileSync('worker.js','utf8').replace('export class CalcioArchive','class CalcioArchive').replace('export default {','const worker = {');
+ const matches=[];for(let i=0;i<7;i++)matches.push({id:i+1,utcDate:i===6?'2026-10-22T18:00:00Z':`2026-10-0${i+1}T18:00:00Z`,status:i===6?'TIMED':'FINISHED',season:{startDate:'2026-08-21'},homeTeam:{id:1,name:'Casa'},awayTeam:{id:2,name:'Ospite'},score:{fullTime:{home:2,away:1}}});
+ let mode='ok',xgCalls=0;
+ const feed=['kickoff_utc,status,home,away,home_goals_90,away_goals_90,home_xg,away_xg,team_xg_source',...matches.map((m,i)=>[m.utcDate,i===6?'scheduled':'full_time','"Casa"', 'Ospite',i===4?9:2,1,i===5?'':'2.10','0.80','Sportmonks'].join(','))].join('\n');
+ const ctx=vm.createContext({Request,Response,URL,Date:TestDate,AbortController,setTimeout,clearTimeout,TextEncoder,TextDecoder,crypto:globalThis.crypto,fetch:async(url,opts)=>{
+   if(url==='https://www.xgtables.io/data/v1/serie-a/2026/fixtures.csv'){
+    xgCalls++;assert.equal(opts.headers['X-Auth-Token'],undefined);
+    return mode==='ok'?new Response(feed):new Response('unavailable',{status:503});
+   }
+   assert.equal(url,'https://api.football-data.org/v4/competitions/SA/matches');assert.equal(opts.headers['X-Auth-Token'],'mock-token');
+   return Response.json({competition:{code:'SA'},matches});
+ }});
+ vm.runInContext(source+';globalThis.workerUnderTest=worker;',ctx);
+ const call=async path=>ctx.workerUnderTest.fetch(new Request('https://example.test'+path),{FOOTBALL_DATA_KEY:'mock-token'});
+ const r=await call('/api/analyze?league=135');assert.equal(r.status,200);
+ const body=await r.json();assert.equal(body.meta.version,'1.7.0-fd');assert.equal(body.matches[0].id,8000000007);valid(body.matches[0].analysis);assert.equal(body.meta.xgAvailable,4);assert.equal(body.matches[0].analysis.xg.applied,true);
+ const result=await (await call('/api/results?ids=8000000001')).json();assert.deepEqual(result.results[0].score,{home:2,away:1});
+ assert.equal(xgCalls,1);
+ mode='unavailable';const fallback=await (await call('/api/analyze?league=135')).json();
+ assert.equal(fallback.ok,true);assert.equal(fallback.meta.xgAvailable,0);assert.equal(fallback.matches[0].analysis.xg.applied,false);
+});
