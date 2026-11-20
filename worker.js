@@ -587,10 +587,19 @@ async function fdSerieA(env,ids=null){
   const hit=await cache?.match(key);
   let source=hit?await hit.json():null;
   if(!source){
-    let r;try{r=await fetch('https://api.football-data.org/v4/competitions/SA/matches',{headers:{'X-Auth-Token':env.FOOTBALL_DATA_KEY},redirect:'error',signal:AbortSignal.timeout(12000)});}catch{throw new AppError('FD_NETWORK','football-data.org non raggiungibile.',502);}
+    const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000);
+    let r,payload;
+    try{
+      r=await fetch('https://api.football-data.org/v4/competitions/SA/matches',{headers:{'X-Auth-Token':env.FOOTBALL_DATA_KEY.trim(),Accept:'application/json'},redirect:'manual',signal:ctl.signal});
+      if(r.ok)try{payload=await r.json();}catch(e){if(ctl.signal.aborted)throw e;throw new AppError('FD_SCHEMA','football-data.org ha risposto con dati non leggibili.',502);}
+    }catch(e){
+      if(e instanceof AppError)throw e;
+      if(ctl.signal.aborted)throw new AppError('FD_TIMEOUT','football-data.org non ha risposto entro 12 secondi.',504);
+      throw new AppError('FD_NETWORK','Cloudflare non riesce a collegarsi a football-data.org.',502);
+    }finally{clearTimeout(timer);}
+    if(r.status>=300&&r.status<400)throw new AppError('FD_REDIRECT','football-data.org ha reindirizzato la chiamata API.',502);
     if(!r.ok)throw new AppError('FD_UPSTREAM','football-data.org: '+([401,403].includes(r.status)?'chiave o accesso alla Serie A da verificare.':r.status===429?'limite richieste raggiunto.':'dati temporaneamente non disponibili.'),r.status===429?429:502);
-    const payload=await r.json();
-    if(payload.competition?.code!=='SA'||!Array.isArray(payload.matches)||!payload.matches.length)throw new AppError('FD_SCHEMA','Calendario Serie A non riconosciuto.',502);
+    if(payload?.competition?.code!=='SA'||!Array.isArray(payload.matches)||!payload.matches.length)throw new AppError('FD_SCHEMA','Calendario Serie A non riconosciuto.',502);
     source={payload,at:iso()};
     try{await cache?.put(key,new Response(JSON.stringify(source),{headers:{'Cache-Control':'public, max-age=600'}}));}catch{}
   }
