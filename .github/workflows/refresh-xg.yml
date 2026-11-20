@@ -1,0 +1,68 @@
+name: Aggiorna xG Serie A
+on:
+  schedule:
+    - cron: '37 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: serie-a-xg
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+      - name: Scarica e valida gli xG
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import csv, datetime as dt, email.utils, io, json, math, pathlib, urllib.request
+          now = dt.datetime.now(dt.timezone.utc)
+          season = now.year - (now.month < 8)
+          url = f'https://www.xgtables.io/data/v1/serie-a/{season}/fixtures.csv'
+          with urllib.request.urlopen(urllib.request.Request(url, headers={'Accept': 'text/csv'}), timeout=25) as response:
+              raw = response.read(524289)
+              updated = email.utils.parsedate_to_datetime(response.headers['Last-Modified']).astimezone(dt.timezone.utc)
+          if len(raw) > 524288 or updated > now + dt.timedelta(minutes=5) or updated < now - dt.timedelta(days=7):
+              raise ValueError('File sorgente troppo grande o data non valida')
+          names = 'kickoff_utc status home away home_goals_90 away_goals_90 home_xg away_xg team_xg_source'.split()
+          reader = csv.DictReader(io.StringIO(raw.decode('utf-8-sig')))
+          if not set(names).issubset(reader.fieldnames or []):
+              raise ValueError('Colonne inattese nel CSV')
+          rows, seen = [], set()
+          for r in reader:
+              if r['status'] != 'full_time' or r['team_xg_source'] != 'Sportmonks' or not all(r[k] for k in names):
+                  continue
+              kickoff = dt.datetime.fromisoformat(r['kickoff_utc'].replace('Z', '+00:00'))
+              goals = [int(r[k]) for k in names[4:6]]
+              xg = [float(r[k]) for k in names[6:8]]
+              key = tuple(r[k] for k in names[:1] + names[2:4])
+              if key in seen or kickoff >= now or not all(0 <= x < 100 and math.isfinite(x) for x in [*goals, *xg]):
+                  raise ValueError('Partita duplicata o valori inattesi')
+              seen.add(key)
+              rows.append({k:r[k] for k in names})
+          if not 1 <= len(rows) <= 380:
+              raise ValueError('Numero di partite con xG inatteso')
+          out = pathlib.Path('data/serie-a-xg.json')
+          previous = json.loads(out.read_text()) if out.exists() else {}
+          if previous.get('season') == season and (len(rows) < previous.get('count', 0) or updated < dt.datetime.fromisoformat(previous['updatedAt'])):
+              raise ValueError('Il nuovo file peggiora la copertura o è più vecchio')
+          buf = io.StringIO()
+          writer = csv.DictWriter(buf, fieldnames=names, lineterminator='\n')
+          writer.writeheader()
+          writer.writerows(rows)
+          out.parent.mkdir(exist_ok=True)
+          out.write_text(json.dumps({'season':season,'source':'xGTables / Sportmonks','updatedAt':updated.isoformat(),'count':len(rows),'csv':buf.getvalue()},ensure_ascii=False,separators=(',',':'))+'\n')
+          print(f'{len(rows)} gare valide; fonte aggiornata {updated.isoformat()}')
+          PY
+      - name: Pubblica la copia verificata
+        shell: bash
+        run: |
+          git add data/serie-a-xg.json
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Aggiorna la copia xG Serie A'
+          git push origin HEAD:main
