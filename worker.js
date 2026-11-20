@@ -624,13 +624,13 @@ function applyAutomaticXg(csv,fixtures){
 }
 async function fetchAutomaticXg(season,cache){
   const url='https://www.xgtables.io/data/v1/serie-a/'+season+'/fixtures.csv';
-  const key=new Request(url+'?calcioai=xg-v1');
-  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),4500);
+  const key=new Request('https://calcio-ai-11-05b5.doriandori88.workers.dev/cache/xgtables-sa-'+season+'-v1');
+  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),8000);
   try{
-    const hit=await cache?.match(key);
+    let hit=null;try{hit=await cache?.match(key);}catch{}
     if(hit)return {csv:await hit.text(),at:hit.headers.get('X-Calcio-Fetched-At')};
     const r=await fetch(url,{headers:{Accept:'text/csv'},redirect:'error',signal:ctl.signal});
-    if(!r.ok||!r.body)throw new Error('xG feed unavailable');
+    if(!r.ok||!r.body)throw new AppError('XG_HTTP_'+r.status,'xG feed unavailable');
     const reader=r.body.getReader(),decoder=new TextDecoder();let csv='',size=0;
     for(;;){
       const {done,value}=await reader.read();if(done)break;
@@ -673,13 +673,13 @@ async function fdSerieA(env,ids=null){
   if(!all.length)throw new AppError('FD_SCHEMA','Nessuna gara Serie A valida.',502);
   const meta={generatedAt:iso(),sourceUpdatedAt:source.at,provider:'football-data.org',leagueId:135,leagueName:'Serie A',season,version:'1.7.0-fd',dataRevision:'fd-serie-a-1',cacheHits:hit?1:0,upstreamCalls:hit?0:1};
   if(ids)return json({ok:true,meta,results:all.filter(f=>ids.includes(String(f.fixture.id))).map(f=>({id:f.fixture.id,date:f.fixture.date,status:f.fixture.status.short,score:regulationScore(f)}))});
-  const cf=completed(all);let xgAt=null,matched=0;
+  const cf=completed(all);let xgAt=null,matched=0,xgStatus=null;
   if(cf.length)try{
     const feed=await fetchAutomaticXg(season,cache);
-    matched=applyAutomaticXg(feed.csv,cf);xgAt=feed.at;
-  }catch{/* Calendar and base model are independent of the xG feed. */}
+    matched=applyAutomaticXg(feed.csv,cf);xgAt=feed.at;xgStatus=matched?'ok':'no_matches';
+  }catch(e){xgStatus=e instanceof AppError?e.code:e?.name==='AbortError'?'timeout':e?.message==='Unexpected xG feed schema'?'schema':'unavailable';}
   const data={id:135,name:'Serie A',season,cf,pf:[],curAvg:avg(cf),prevAvg:avg([]),curBase:leagueBase(cf),prevBase:leagueBase([]),elo:buildElo(cf)};
-  return json({ok:true,meta:{...meta,xgChecked:cf.length,xgAvailable:matched,xgSource:XG_TABLES_SOURCE,xgSourceUpdatedAt:xgAt},matches:upcoming(all).map(f=>{
+  return json({ok:true,meta:{...meta,xgChecked:cf.length,xgAvailable:matched,xgSource:XG_TABLES_SOURCE,xgSourceUpdatedAt:xgAt,xgStatus},matches:upcoming(all).map(f=>{
     const p=predictXG(f,data);
     if(p.analysis.explain)p.analysis.explain=p.analysis.explain.map(t=>t.replace('xG del provider:', 'xG xGTables / Sportmonks:'));
     p.analysis.note='Calendario e risultati: football-data.org. '+(matched?'xG storici da xGTables / Sportmonks. ':'xG storici non disponibili. ')+'I gol attesi futuri sono stime del modello.';
